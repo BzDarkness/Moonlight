@@ -1,0 +1,81 @@
+name: Build Moonlight Launcher (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versao do launcher (ex.: 1.4.0). Use a MESMA da Release que voce vai criar.'
+        required: false
+        default: ''
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Localizar o projeto
+        id: proj
+        shell: pwsh
+        run: |
+          $f = Get-ChildItem -Recurse -Filter MoonlightLauncher.csproj | Select-Object -First 1
+          if (-not $f) { Write-Error "MoonlightLauncher.csproj nao encontrado no repositorio"; exit 1 }
+          Write-Host "Projeto: $($f.FullName)"
+          "path=$($f.FullName)" >> $env:GITHUB_OUTPUT
+
+      # Se o build foi disparado por uma tag (ex.: v1.1.0), essa vira a versao do launcher.
+      - name: Definir versao
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "1.0.0"
+          $m = Select-String -Path "${{ steps.proj.outputs.path }}" -Pattern '<Version>([^<]+)</Version>' | Select-Object -First 1
+          if ($m) { $v = $m.Matches[0].Groups[1].Value }
+          if ($env:GITHUB_REF -like "refs/tags/v*") { $v = $env:GITHUB_REF_NAME.TrimStart("v") }
+          elseif ("${{ github.event.inputs.version }}" -ne "") { $v = "${{ github.event.inputs.version }}".TrimStart("v") }
+          Write-Host "Versao: $v"
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Publish single-file EXE
+        shell: pwsh
+        run: >
+          dotnet publish "${{ steps.proj.outputs.path }}" -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishReadyToRun=false
+          -p:EnableWindowsTargeting=true
+          -p:Version=${{ steps.ver.outputs.version }}
+          -p:UpdateRepo=${{ github.repository }}
+          -o "${{ github.workspace }}/publish"
+
+      - name: Upload launcher EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoonlightLauncher-Windows-x64
+          path: publish/MoonlightLauncher.exe
+          if-no-files-found: error
+
+      # So roda quando voce cria uma Release/tag "v..." : anexa o .exe para o auto-update achar.
+      - name: Anexar o .exe na Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/MoonlightLauncher.exe

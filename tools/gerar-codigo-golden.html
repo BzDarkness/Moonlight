@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Gerador de códigos – Golden Moon</title>
+<style>
+  body{font-family:Segoe UI,Arial,sans-serif;background:#0d0b24;color:#eceaff;max-width:620px;margin:40px auto;padding:0 20px}
+  h1{color:#ffc94a} input,button{font-size:15px;padding:10px 12px;border-radius:10px;border:1px solid #555;background:#1a1744;color:#fff}
+  button{background:linear-gradient(135deg,#ffd54f,#ff8f00);color:#222;font-weight:700;border:0;cursor:pointer}
+  input{width:100%;box-sizing:border-box;margin:6px 0 14px} pre{background:#1a1744;padding:14px;border-radius:10px;font-size:17px;letter-spacing:1px}
+  small{color:#a9a5d6}
+</style>
+</head>
+<body>
+<h1>🌙 Gerador de códigos Golden Moon</h1>
+<p><small>Use o <b>mesmo segredo</b> que está em <code>Theme.cs</code> (constante <code>GoldenMoon.Secret</code>) antes de compilar o launcher. Tudo roda no seu navegador, nada é enviado.</small></p>
+<label>Segredo</label>
+<input id="secret" value="TROQUE-ESTE-SEGREDO-DO-GOLDEN-MOON">
+<label>Quantidade de códigos</label>
+<input id="qtd" type="number" value="5" min="1" max="200">
+<button onclick="gerar()">Gerar códigos</button>
+<pre id="out">(os códigos aparecem aqui)</pre>
+<script>
+const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+async function mac(secret, payload){
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), {name:"HMAC", hash:"SHA-256"}, false, ["sign"]);
+  const d = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(payload)));
+  const n = ((d[0]<<24)|(d[1]<<16)|(d[2]<<8)|d[3])>>>0;
+  let s = "";
+  for(let i=0;i<6;i++) s += ALPHA[(n >>> (27-5*i)) & 31];
+  return s;
+}
+async function gerar(){
+  const secret = document.getElementById("secret").value;
+  const qtd = Math.min(200, Math.max(1, parseInt(document.getElementById("qtd").value)||1));
+  const lines = [];
+  for(let k=0;k<qtd;k++){
+    const r = crypto.getRandomValues(new Uint8Array(10));
+    let p = ""; for(const b of r) p += ALPHA[b & 31];
+    const c = p + await mac(secret, p);
+    lines.push(c.match(/.{4}/g).join("-"));
+  }
+  document.getElementById("out").textContent = lines.join("\n");
+}
+</script>
+</body>
+</html>
