@@ -23,6 +23,7 @@ public static class FriendsConfig
     /// </summary>
     public const string DefaultRelay = "wss://moonlight-amigos.onrender.com";
 
+
     /// <summary>
     /// Endereço usado de fato: o do arquivo %AppData%\MoonlightLauncher\relay.txt (se existir) ou o DefaultRelay.
     /// Serve para trocar o servidor sem gerar o .exe de novo.
@@ -70,6 +71,7 @@ public class ChatLine
     public bool Mine { get; set; }
     public string Text { get; set; } = "";
     public long Ts { get; set; }                   // milissegundos (UTC) desde 1970
+    public string Kind { get; set; } = "";         // "" = mensagem comum | "call" = aviso de chamada (linha centralizada)
 }
 
 public class FriendsStore
@@ -310,8 +312,24 @@ public sealed class FriendVm : Notifier
     private bool _online;
     private WorldInfo? _world;
     private int _unread;
+    private string _game = "";
+    private bool _inCall;
+
+    /// <summary>Estou em chamada com esta pessoa agora.</summary>
+    public bool InCall
+    {
+        get => _inCall;
+        set { if (Set(ref _inCall, value)) { Raise(nameof(SubText)); Raise(nameof(Preview)); } }
+    }
 
     public string Id { get; init; } = "";
+
+    /// <summary>Versão do Minecraft que o amigo está jogando agora (vazio = não está jogando ou o servidor não informou).</summary>
+    public string Game
+    {
+        get => _game;
+        set { if (Set(ref _game, value ?? "")) { Raise(nameof(SubText)); Raise(nameof(Preview)); } }
+    }
 
     public string Name { get => _name; set { if (Set(ref _name, value)) Raise(nameof(SubText)); } }
 
@@ -383,17 +401,20 @@ public sealed class FriendVm : Notifier
     public string LastTime { get => _lastTime; set => Set(ref _lastTime, value); }
 
     /// <summary>Linha de baixo do nome na lista: mundo aberto > última mensagem > online/offline.</summary>
-    public string Preview => HasWorld ? SubText : _lastText.Length > 0 ? _lastText : SubText;
+    public string Preview => _inCall || HasWorld ? SubText : _lastText.Length > 0 ? _lastText : SubText;
 
-    public string SubText => HasWorld ? $"🌍 Mundo aberto · {_world!.Mc}"
+    public string SubText => _inCall ? "📞 Em chamada"
+        : HasWorld ? $"🌍 Mundo aberto · {_world!.Mc}"
         : !_online ? "Offline"
         : _status == "dnd" ? "🌙 Não perturbe"
+        : _game.Length > 0 ? $"🎮 Jogando Minecraft {_game}"
         : "Online";
 }
 
 public sealed class ChatVm
 {
     public bool Mine { get; init; }
+    public bool IsSystem { get; init; }            // aviso de chamada ("Chamada encerrada · 5 min")
     public string Text { get; init; } = "";
     public string Time { get; init; } = "";
 }

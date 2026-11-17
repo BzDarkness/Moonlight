@@ -81,10 +81,15 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        Ps1.On = ThemeManager.Ps1;   // tema secreto estava ligado na última vez?
+        Ps1.RegisterHandlers();
+        _startLite = Perf.Setting == "Light"; // modo Leve escolhido: abre só a janelinha leve
         InitializeComponent();
+        if (_startLite) PrepareLiteStart();
 
         _path = new MinecraftPath(_root);
         _launcher = new MinecraftLauncher(_path);
+        HttpTimeouts.Relax(_launcher); // sem o limite de 100 s do HttpClient padrão
 
         _launcher.FileProgressChanged += (_, e) => Dispatcher.Invoke(() =>
         {
@@ -105,14 +110,15 @@ public partial class MainWindow : Window
         // Abertura: janela branca balançando/tremendo. Fica no mínimo ~1,8 s, depois abre soltando brilhinhos.
         // (No modo leve: só um clarão rápido, sem tremor e sem brilhinhos.)
         // Se as versões demorarem, abre mesmo assim aos 4,5 s.
-        var splashMin = Task.Delay(Perf.Light ? 600 : 1800);
+        var ps1Start = Ps1.On; // tema PlayStation 1: abertura própria no lugar da janela branca
+        var splashMin = ps1Start ? Task.CompletedTask : Task.Delay(Perf.Light ? 600 : 1800);
         var splashCap = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4.5) };
         splashCap.Tick += (_, _) =>
         {
             splashCap.Stop();
             _ = FinishSplashAsync();
         };
-        splashCap.Start();
+        if (!ps1Start) splashCap.Start();
 
         InitSpace();
         InitSettingsPage();
@@ -121,13 +127,35 @@ public partial class MainWindow : Window
         InitPlayView();
         RecoverModpackSession();
         VersionText.Text = Updater.CurrentText;
-        PrepareIntro();
-        PlayWindowIntro();
-        StartIntroShake();
-        RamSlider.Value = Math.Clamp(_state.Ram, 1024, 16384);
+        if (ps1Start)
+        {
+            Splash.Visibility = Visibility.Collapsed;
+            _splashDone = true;
+            _splashStarted = true;
+            Ps1Apply(true, true);
+            PlayWindowIntro();
+        }
+        else if (_startLite)
+        {
+            // Modo leve: a janela grande não faz abertura nenhuma (ela nem aparece).
+            Splash.Visibility = Visibility.Collapsed;
+            _splashDone = true;
+            _splashStarted = true;
+            Opacity = 1;
+        }
+        else
+        {
+            PrepareIntro();
+            PlayWindowIntro();
+            StartIntroShake();
+        }
+        // O controle de RAM só vai até o que o PC aguenta com segurança (antes ia até 16 GB em qualquer PC).
+        RamSlider.Maximum = Perf.MaxGameRamMb;
+        RamSlider.Value = Math.Clamp(_state.Ram, 1024, (int)RamSlider.Maximum);
         RefreshAccountsUi();
         InitFriends();
         QueueShortcutSync(); // atalho na área de trabalho (1ª abertura)
+        if (_startLite) EnterLiteMode(); // a janelinha leve já abre; as versões chegam nela quando carregarem
 
         try
         {
@@ -301,10 +329,13 @@ public partial class MainWindow : Window
             if (show && !Perf.Light) FadeIn(page);
         }
 
+        if (tag != null) SetActiveTab(tag); // só a aba aberta fica ativa; as outras dormem (sem RAM)
+
         if (tag != "Mods") SetModsBars(true, instant: true); // título volta ao normal nas outras abas
         SetSettingsTimer(tag == "Settings");
         if (tag == "Mods") EnterModsPage();
         if (tag == "Golden" && _splashDone) ShowGoldenFx(false); // animação com todos os benefícios
+        if (Ps1.On && tag != null) Ps1SetHeaderFor(tag);
     }
 
     // Transição das páginas: aparece suavemente subindo um pouquinho.
@@ -396,6 +427,7 @@ public partial class MainWindow : Window
         PlayButton.IsEnabled = items.Count > 0 && !_busy;
 
         RebuildVersionCards(); // visão detalhada (cartões com banner); não faz nada na visão em lista
+        _lite?.RefreshVersions(); // interface leve: atualiza a lista dela também
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -406,7 +438,7 @@ public partial class MainWindow : Window
     private void RamSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (RamLabel != null)
-            RamLabel.Text = $"Memória RAM: {(int)e.NewValue} MB";
+            RamLabel.Text = $"Memória RAM: {(int)e.NewValue} MB  ·  seu PC aguenta até {Perf.MaxGameRamMb} MB";
     }
 
     private void SetBusy(bool busy)
@@ -423,6 +455,9 @@ public partial class MainWindow : Window
     private Task<string> ShowPopupAsync(string title, string message, string? details,
         params (string Label, string Key)[] buttons)
     {
+        // Interface leve: a janela grande está escondida, então o aviso aparece numa janelinha da interface leve.
+        if (_lite != null) return Task.FromResult(_lite.ShowMessage(title, message, details, buttons));
+
         _popupTcs?.TrySetResult("close");
 
         PopupTitle.Text = title;
@@ -508,7 +543,7 @@ public partial class MainWindow : Window
                 ? "Preparando o jogo…"
                 : $"Instalando {Info[_loader].Title} para {selected} (pode demorar na primeira vez)…";
 
-            var versionName = await PrepareVersionAsync(selected);
+            var versionName = await HttpTimeouts.RetryAsync(() => PrepareVersionAsync(selected), s => StatusText.Text = s);
             var (session, offline) = await ResolveSessionAsync(_active);
             if (session == null)
             {
@@ -516,10 +551,18 @@ public partial class MainWindow : Window
                 return;
             }
 
+            var wantedRam = (int)RamSlider.Value;
+            var safeRam = Perf.ClampGameRam(wantedRam);
+            if (safeRam < wantedRam)
+            {
+                LauncherLog.Write($"RAM reduzida de {wantedRam} MB para {safeRam} MB (limite do PC / memória livre agora).");
+                StatusText.Text = $"Memória livre baixa: usando {safeRam} MB de RAM no jogo para não travar.";
+            }
+
             var opts = new MLaunchOption
             {
                 Session = session,
-                MaximumRamMb = (int)RamSlider.Value
+                MaximumRamMb = safeRam
             };
 
             // Skin local: só entra em contas offline. Para contas online, a skin vem da Mojang.
@@ -528,7 +571,8 @@ public partial class MainWindow : Window
 
             // Se tudo já estiver baixado, esta etapa é rápida; o progresso de downloads aparece sozinho.
             StatusText.Text = "Verificando os arquivos do jogo…";
-            var process = await _launcher.InstallAndBuildProcessAsync(versionName, opts);
+            var process = await HttpTimeouts.RetryAsync(
+                () => _launcher.InstallAndBuildProcessAsync(versionName, opts), s => StatusText.Text = s);
 
             StatusText.Text = $"Iniciando Minecraft como {_active.Name} ({_active.TypeLabel})…";
             if (_pendingPack != null) BeginModpackSession(_pendingPack);
@@ -547,8 +591,8 @@ public partial class MainWindow : Window
             EndModpackSession();
             LauncherLog.Write($"Falha ao iniciar (conta={_active?.Type}, modo={_loader}, versão={selected})", ex);
             StatusText.Text = "Erro: " + ex.Message;
-            var friendly = ex is HttpRequestException
-                ? "Não consegui baixar algum arquivo. Verifique sua internet e tente de novo."
+            var friendly = HttpTimeouts.IsNetworkFailure(ex)
+                ? "A internet demorou demais ou caiu enquanto baixava os arquivos do jogo. Verifique a conexão (VPN e antivírus podem atrapalhar) e clique em Jogar de novo: o que já foi baixado não é baixado outra vez."
                 : ex.Message;
             await ShowPopupAsync("Não foi possível iniciar o jogo", friendly,
                 $"{ex.GetType().Name}: {ex.Message}", ("Fechar", "close"));
@@ -575,13 +619,17 @@ public partial class MainWindow : Window
             case Loader.ForgeOptiFine:
             {
                 if (FindLocalVersion(mc, Loader.Forge) is { } local) return local.Id;
-                return await new ForgeInstaller(_launcher).Install(mc);
+                var forge = new ForgeInstaller(_launcher);
+                HttpTimeouts.Relax(forge);
+                return await forge.Install(mc);
             }
 
             case Loader.NeoForge:
             {
                 if (FindLocalVersion(mc, Loader.NeoForge) is { } local) return local.Id;
-                return await new NeoForgeInstaller(_launcher).Install(mc, new NeoForgeInstallOptions());
+                var neo = new NeoForgeInstaller(_launcher);
+                HttpTimeouts.Relax(neo);
+                return await neo.Install(mc, new NeoForgeInstallOptions());
             }
 
             case Loader.OptiFine:
@@ -595,7 +643,7 @@ public partial class MainWindow : Window
     // Fabric: baixa o perfil direto da API oficial (meta.fabricmc.net) e grava na pasta versions.
     private async Task<string> InstallFabricAsync(string mc)
     {
-        using var http = new HttpClient();
+        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("MoonlightLauncher/1.0");
 
         var listJson = await http.GetStringAsync($"https://meta.fabricmc.net/v2/versions/loader/{mc}");
@@ -632,9 +680,64 @@ public partial class MainWindow : Window
 
     // ---------- Monitoramento do jogo / crash ----------
 
+    // true enquanto o Minecraft aberto por este launcher está rodando (o launcher fica "quietinho").
+    private bool _gameActive;
+
+    // Coloca opções de JVM mais leves no comando do jogo (só se a versão não escolheu um coletor de lixo).
+    private static void AddLightJvmFlags(Process process)
+    {
+        try
+        {
+            var si = process.StartInfo;
+            var current = si.ArgumentList.Count > 0
+                ? string.Join(" ", si.ArgumentList)
+                : si.Arguments ?? "";
+
+            if (Regex.IsMatch(current, @"-XX:[+-](Use\w*GC|UseG1GC)\b|MaxGCPauseMillis")) return; // já tem o seu
+
+            if (si.ArgumentList.Count > 0)
+            {
+                for (var i = Perf.LightJvmFlags.Length - 1; i >= 0; i--)
+                    si.ArgumentList.Insert(0, Perf.LightJvmFlags[i]);
+            }
+            else
+            {
+                si.Arguments = string.Join(" ", Perf.LightJvmFlags) + " " + current;
+            }
+        }
+        catch (Exception ex) { LauncherLog.Write("Não consegui ajustar as opções de JVM", ex); }
+    }
+
+    // O launcher só espera o jogo fechar: prioridade baixa para o Minecraft ficar com a CPU.
+    private void EnterGameMode()
+    {
+        _gameActive = true;
+        try
+        {
+            using var me = Process.GetCurrentProcess();
+            me.PriorityClass = ProcessPriorityClass.BelowNormal;
+        }
+        catch { /* não é crítico */ }
+    }
+
+    private void ExitGameMode()
+    {
+        _gameActive = false;
+        try
+        {
+            using var me = Process.GetCurrentProcess();
+            me.PriorityClass = ProcessPriorityClass.Normal;
+        }
+        catch { /* não é crítico */ }
+    }
+
     private void WatchProcess(Process process, DateTime started)
     {
         lock (_log) _log.Clear();
+
+        // Normal ANTES de abrir o jogo: no Windows o processo filho herda a prioridade baixa do pai.
+        ExitGameMode();
+        AddLightJvmFlags(process);
 
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.RedirectStandardOutput = true;
@@ -661,6 +764,8 @@ public partial class MainWindow : Window
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
+        EnterGameMode();
+        FriendsOnGameStarted(); // amigos veem que estou jogando; começa a escutar o "Abrir para LAN"
 
         _ = PlayLaunchAnimationAsync(); // treme, fica branco e some enquanto o Minecraft estiver aberto
     }
@@ -669,6 +774,7 @@ public partial class MainWindow : Window
     {
         if (line == null) return;
         FriendsOnGameLog(line);
+        if (line.Length > 4000) line = line[..4000]; // mods que cospem linhas gigantes não enchem a memória
         lock (_log)
         {
             _log.Enqueue(line);
@@ -679,12 +785,20 @@ public partial class MainWindow : Window
     private async Task OnGameExited(int code, DateTime started)
     {
         // Reabre o launcher quando o Minecraft fecha
+        ExitGameMode();
         EndModpackSession();
         FriendsOnGameExited();
-        Show();
-        RestoreAfterGame();
-        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-        Activate();
+        if (_lite != null)
+        {
+            _lite.Reappear(); // interface leve: a janelinha volta, a grande continua escondida
+        }
+        else
+        {
+            Show();
+            RestoreAfterGame();
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
+        }
 
         if (code == 0)
         {

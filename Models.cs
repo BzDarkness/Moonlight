@@ -33,6 +33,8 @@ public class AppState
     public string Theme { get; set; } = "Default"; // Default | Light | Dark | Midnight
     public string GoldenCode { get; set; } = "";   // código de ativação do Golden Moon
     public bool GoldPalettesOn { get; set; }       // usar as paletas personalizadas (só com o Golden Moon)
+    public bool Ps1Mode { get; set; }              // tema secreto PlayStation 1 ligado
+    public bool Ps1Unlocked { get; set; }          // o código secreto já foi usado: o botão PS1 aparece em Temas
     public string GoldColor1 { get; set; } = "#FFD54F";
     public string GoldColor2 { get; set; } = "#FF8F00";
     public string AppIcon { get; set; } = "";      // ícone do aplicativo (só com o Golden Moon). Vazio = o original
@@ -44,6 +46,10 @@ public class AppState
     public bool ShortcutCreated { get; set; }          // o launcher já criou o atalho alguma vez (se a pessoa apagar, não recria sozinho)
     public string ShortcutSig { get; set; } = "";      // caminho do .exe + ícone usados no último atalho gravado
     public bool PlayDetailed { get; set; } = true; // aba Jogar no modo detalhado (cartões com banner de cada versão)
+    public bool CallNoiseSuppression { get; set; } = true; // supressão de ruído do microfone nas chamadas
+    public int ShareHeight { get; set; }           // última resolução usada ao compartilhar a tela (0 = ainda não escolheu)
+    public int ShareFps { get; set; }              // últimos quadros por segundo usados ao compartilhar a tela (0 = ainda não escolheu)
+    public bool ShareAudio { get; set; } = true;   // levar o som do PC ao compartilhar a tela
     public List<Account> Accounts { get; set; } = new();
 }
 

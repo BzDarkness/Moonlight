@@ -111,6 +111,22 @@ public sealed class SkinViewer3D : UserControl
         }
     }
 
+    /// <summary>
+    /// Aba dormindo: solta a imagem de desenho e os buffers (ficam grandes no modo completo).
+    /// Quando a aba volta, o SizeChanged refaz tudo sozinho.
+    /// </summary>
+    public void ReleaseMemory()
+    {
+        _timer.Stop();
+        _image.Source = null;
+        _bmp = null;
+        _pix = Array.Empty<int>();
+        _zbuf = Array.Empty<float>();
+        _bw = 0;
+        _bh = 0;
+        _dirty = true;
+    }
+
     // ---------- Skin ----------
 
     /// <summary>png = arquivo da skin (64×64 ou 64×32); null mostra o boneco padrão.</summary>

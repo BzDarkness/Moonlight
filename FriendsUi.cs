@@ -67,10 +67,22 @@ public partial class MainWindow
     private object? _hostWorld;      // o que foi anunciado (reenviado se a conexão cair e voltar)
     private string _gameMc = "";     // versão do Minecraft que está aberto (ou foi aberto por último)
     private Loader _gameLoader = Loader.Vanilla;
+    private bool _gameRunning;       // o Minecraft aberto por este launcher está rodando agora
+    private LanBeacon? _beacon;      // escuta o aviso de "mundo aberto para LAN" que o próprio Minecraft manda
+    private DispatcherTimer? _beaconWatch;
+    private DateTime _lastBeaconAt = DateTime.MinValue;
+    private bool _hostFromBeacon;    // o mundo compartilhado foi confirmado pelo aviso do Minecraft (então some quando ele para)
+    private readonly Dictionary<string, DateTime> _lastPresenceToast = new();
 
     // [CHAT] Local game hosted on port 54321  (e as versões em português/espanhol). Mensagens de jogadores ("<nome> …") não contam.
     private static readonly Regex LanRx = new(
         @"\[CHAT\]\s*(?!<)[^<]*?(?:port|porta|puerto)\D{0,15}(\d{4,5})\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // Plano B para o log: algumas versões/loaders não escrevem "[CHAT]" na linha, só o texto da mensagem
+    // ("Local game hosted on port 54321", "Jogo local hospedado na porta 54321", ...).
+    private static readonly Regex LanTextRx = new(
+        @"(?:local\s+game\s+hosted\s+on\s+port|jogo\s+local\s+hospedado\s+na\s+porta|partida\s+local\s+(?:hospedada|alojada)\s+en\s+el\s+puerto|juego\s+local\s+(?:alojado|hospedado)\s+en\s+el\s+puerto)\D{0,6}(\d{4,5})",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static string RelayUrl => FriendsConfig.Normalize(FriendsConfig.Effective);
@@ -146,6 +158,8 @@ public partial class MainWindow
 
         // A conexão com o servidor dos amigos é automática: assim que existe uma conta (offline ou Microsoft),
         // o launcher entra sozinho. O ProfileTimer_Tick (disparado por FriendsProfileChanged) cuida disso.
+        InitCalls();
+
         _friendsReady = true;
         SetConnUi(_active == null ? "Crie uma conta para entrar" : "Conectando…", _active == null ? "#6B6F85" : "#FFB020");
         FriendsProfileChanged();
@@ -154,7 +168,7 @@ public partial class MainWindow
     private object BuildHello() => new
     {
         t = "hello", id = _fs.Id, token = _fs.Token, name = _meName, acc = _meAcc,
-        face = _myFaceB64, status = _fs.Dnd ? "dnd" : "online", v = 1
+        face = _myFaceB64, status = _fs.Dnd ? "dnd" : "online", game = _gameRunning ? _gameMc : "", v = 1
     };
 
     private void StartFriendsConnection()
@@ -242,7 +256,7 @@ public partial class MainWindow
     }
 
     private void SendProfile() =>
-        _fc?.Send(new { t = "profile", name = _meName, acc = _meAcc, face = _myFaceB64, status = _fs.Dnd ? "dnd" : "online" });
+        _fc?.Send(new { t = "profile", name = _meName, acc = _meAcc, face = _myFaceB64, status = _fs.Dnd ? "dnd" : "online", game = _gameRunning ? _gameMc : "" });
 
     private void SendFriendsList() =>
         _fc?.Send(new { t = "friends", ids = _fs.Friends.Select(f => f.Id).ToArray() });
@@ -264,7 +278,7 @@ public partial class MainWindow
 
         if (_active == null) SetConnUi("Crie uma conta para entrar", "#6B6F85");
         else if (!_connBlocked) SetConnUi("Reconectando…", "#FFB020");
-        foreach (var f in _friendVms) { f.Online = false; f.Status = "offline"; f.World = null; }
+        foreach (var f in _friendVms) { f.Online = false; f.Status = "offline"; f.World = null; f.Game = ""; }
         SyncWorlds();
         SortFriends();
         UpdateFriendsChrome();
@@ -366,11 +380,13 @@ public partial class MainWindow
         if (vm == null) return;
 
         var hadWorld = vm.HasWorld;
+        var hadOnline = vm.Online;
+        var hadGame = vm.Game.Length > 0;
         var online = Jx.B(u, "online");
 
         if (!online)
         {
-            vm.Online = false; vm.Status = "offline"; vm.World = null;
+            vm.Online = false; vm.Status = "offline"; vm.World = null; vm.Game = "";
         }
         else
         {
@@ -381,6 +397,7 @@ public partial class MainWindow
             var face = Jx.S(u, "face");
             if (face.Length > 0) vm.FaceB64 = face;
             vm.Status = Jx.S(u, "status") == "dnd" ? "dnd" : "online";
+            vm.Game = Jx.S(u, "game");
             vm.Online = true;
 
             WorldInfo? w = null;
@@ -397,8 +414,14 @@ public partial class MainWindow
             }
         }
 
-        if (!hadWorld && vm.HasWorld && (DateTime.UtcNow - _connectedAt).TotalSeconds > 5)
-            NotifyWorldOpened(vm);
+        // Passados os primeiros segundos da conexão (quando o servidor só está listando quem já estava online):
+        // avisa quando o amigo fica online, abre o Minecraft ou abre um mundo.
+        if ((DateTime.UtcNow - _connectedAt).TotalSeconds > 6)
+        {
+            if (!hadWorld && vm.HasWorld) NotifyWorldOpened(vm);
+            else if (!hadOnline && vm.Online) NotifyFriendOnline(vm, "ficou online 🌙");
+            else if (!hadGame && vm.Online && vm.Game.Length > 0) NotifyFriendOnline(vm, $"entrou no Minecraft {vm.Game} 🎮");
+        }
 
         SyncWorlds();
         SortFriends();
@@ -724,6 +747,7 @@ public partial class MainWindow
         ChatName.Text = vm.Name;
         ChatAcc.Text = vm.AccLabel;
         ChatStatus.Text = vm.SubText;
+        UpdateCallButton();
 
         var w = vm.World;
         WorldPanel.Visibility = vm.HasWorld && w != null ? Visibility.Visible : Visibility.Collapsed;
@@ -742,7 +766,7 @@ public partial class MainWindow
     {
         var t = DateTimeOffset.FromUnixTimeMilliseconds(l.Ts).ToLocalTime();
         var time = t.Date == DateTime.Today ? t.ToString("HH:mm") : t.ToString("dd/MM HH:mm");
-        return new ChatVm { Mine = l.Mine, Text = l.Text, Time = time };
+        return new ChatVm { Mine = l.Mine && l.Kind != "call", IsSystem = l.Kind == "call", Text = l.Text, Time = time };
     }
 
     private void ScrollChatEnd() =>
@@ -812,6 +836,9 @@ public partial class MainWindow
         var vm = _friendVms.FirstOrDefault(f => f.Id == from);
         if (vm == null || text.Length == 0) return;
 
+        // "Toque" de chamada: não é mensagem de verdade, não aparece no chat.
+        if (TryParseCallMsg(text, out var callOp, out var callId)) { OnCallSignal(vm, callOp, callId, Jx.L(m, "ts")); return; }
+
         var ts = Jx.L(m, "ts");
         var line = new ChatLine { Mine = false, Text = text, Ts = ts > 0 ? ts : NowMs() };
         _fs.AddLine(from, line);
@@ -859,6 +886,16 @@ public partial class MainWindow
         _toast.ShowMessage(id, name, face, text, allowReply);
     }
 
+    /// <summary>Janelinha "fulano ficou online / entrou no jogo". No máximo uma por amigo a cada 45 s (evita repetir se a conexão oscilar).</summary>
+    private void NotifyFriendOnline(FriendVm vm, string text)
+    {
+        if (_fs.Dnd) return;
+        if (_lastPresenceToast.TryGetValue(vm.Id, out var last) && (DateTime.UtcNow - last).TotalSeconds < 45) return;
+        _lastPresenceToast[vm.Id] = DateTime.UtcNow;
+        if (_fs.SoundOn) FriendsSound.Play();
+        ShowToastFor(vm.Id, vm.Name, vm.Face, text, allowReply: false);
+    }
+
     private void NotifyWorldOpened(FriendVm vm)
     {
         if (_fs.Dnd || vm.World == null) return;
@@ -870,6 +907,7 @@ public partial class MainWindow
     /// <summary>Traz o launcher para a frente e abre a conversa com este amigo (usado ao clicar na janelinha).</summary>
     public void OpenFriendChat(string id)
     {
+        if (_lite != null) { _lite.Reappear(); return; } // interface leve: não tem tela de amigos
         if (!IsVisible) { Show(); RestoreAfterGame(); }
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
@@ -906,15 +944,19 @@ public partial class MainWindow
     {
         PagePlay.Visibility = Visibility.Collapsed;
         PageFriends.Visibility = Visibility.Visible;
+        SetActiveTab("Friends");
         if (!Perf.Light) FadeIn(PageFriends);
         if (_chatWith != null) ClearUnread(_chatWith);
+        if (Ps1.On) Ps1SetHeaderFor("Friends");
     }
 
     private void FriendsBack_Click(object sender, RoutedEventArgs e)
     {
         PageFriends.Visibility = Visibility.Collapsed;
         PagePlay.Visibility = Visibility.Visible;
+        SetActiveTab("Play");
         if (!Perf.Light) FadeIn(PagePlay);
+        if (Ps1.On) Ps1SetHeaderFor("Play");
     }
 
     private void NavPlay_Click(object sender, RoutedEventArgs e)
@@ -937,21 +979,86 @@ public partial class MainWindow
     // Chamado a cada linha que o Minecraft escreve no console (ver AppendLog).
     private void FriendsOnGameLog(string line)
     {
-        if (!_friendsReady || !line.Contains("[CHAT]", StringComparison.Ordinal)) return;
-        var m = LanRx.Match(line);
+        if (!_friendsReady) return;
+
+        // O jogo escreve milhares de linhas: só gasta regex nas que podem ser do "Abrir para LAN"
+        // (todas têm "[CHAT]" ou a palavra "local").
+        var hasChat = line.Contains("[CHAT]", StringComparison.Ordinal);
+        if (!hasChat && !line.Contains("local", StringComparison.OrdinalIgnoreCase)) return;
+
+        Match m;
+        if (hasChat) m = LanRx.Match(line);
+        else m = Match.Empty;
+        if (!m.Success)
+        {
+            // Sem "[CHAT]": só vale se a linha NÃO for fala de jogador ("<nome> ...").
+            m = LanTextRx.Match(line);
+            var lt = line.IndexOf('<');
+            if (m.Success && lt >= 0 && lt < m.Index) return;
+        }
         if (!m.Success || !int.TryParse(m.Groups[1].Value, out var port) || port < 1024 || port > 65535) return;
         Dispatcher.InvokeAsync(() => _ = StartSharingWorldAsync(port));
+    }
+
+    /// <summary>Chamado quando o Minecraft abre: avisa os amigos que estou jogando e começa a escutar o "Abrir para LAN".</summary>
+    private void FriendsOnGameStarted()
+    {
+        if (!_friendsReady) return;
+        _gameRunning = true;
+        SendProfile();
+
+        // Plano B que não depende do texto do log: o Minecraft avisa (UDP 224.0.2.60:4445) a porta do mundo aberto para LAN.
+        try { _beacon?.Dispose(); } catch { /* */ }
+        _hostFromBeacon = false;
+        _lastBeaconAt = DateTime.MinValue;
+        _beacon = LanBeacon.Start(port => Dispatcher.InvokeAsync(() => OnLanBeacon(port)));
+
+        _beaconWatch ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _beaconWatch.Tick -= BeaconWatch_Tick;
+        _beaconWatch.Tick += BeaconWatch_Tick;
+        _beaconWatch.Start();
+    }
+
+    private void OnLanBeacon(int port)
+    {
+        if (!_gameRunning || port < 1024 || port > 65535) return;
+        _lastBeaconAt = DateTime.UtcNow;
+        if (_hostPort == port)
+        {
+            _hostFromBeacon = true; // o Minecraft confirma que o mundo continua aberto
+            return;
+        }
+        if (_hostPort > 0) return; // já compartilhando outra porta (ex.: digitada na mão)
+        _hostFromBeacon = true;
+        _ = StartSharingWorldAsync(port);
+    }
+
+    // Mundo compartilhado pelo aviso do Minecraft que parou de ser anunciado (a pessoa saiu do mundo): para de compartilhar.
+    private void BeaconWatch_Tick(object? sender, EventArgs e)
+    {
+        if (_hostPort > 0 && _hostFromBeacon && (DateTime.UtcNow - _lastBeaconAt).TotalSeconds > 12)
+        {
+            _hostFromBeacon = false;
+            StopSharingWorld();
+        }
     }
 
     private void FriendsOnGameExited()
     {
         if (!_friendsReady) return;
+        _gameRunning = false;
+        try { _beaconWatch?.Stop(); } catch { /* */ }
+        try { _beacon?.Dispose(); } catch { /* */ }
+        _beacon = null;
+        _hostFromBeacon = false;
         StopSharingWorld();
+        SendProfile();
     }
 
     private async Task StartSharingWorldAsync(int port)
     {
         if (_fc == null) return;
+        if (_hostPort == port && _hostWorld != null) return; // já compartilhando esta porta
         _hostPort = port;
 
         var mc = _gameMc.Length > 0 ? _gameMc : VersionList.SelectedItem as string ?? "";
@@ -1200,7 +1307,7 @@ public partial class MainWindow
             var (session, offline) = await ResolveSessionAsync(_active);
             if (session == null) { StatusText.Text = "Cancelado."; return; }
 
-            var opts = new MLaunchOption { Session = session, MaximumRamMb = (int)RamSlider.Value };
+            var opts = new MLaunchOption { Session = session, MaximumRamMb = Perf.ClampGameRam((int)RamSlider.Value) };
 
             try { SyncSkinPack(_active, mc, offline); }
             catch (Exception ex) { LauncherLog.Write("Não consegui preparar a skin offline", ex); }

@@ -21,6 +21,9 @@ public static class ThemeManager
     public static string Current { get; private set; } = "Default";
     public static bool PalettesOn { get; private set; }
 
+    /// <summary>Tema secreto PlayStation 1 (ligado pelo código na aba Golden Moon).</summary>
+    public static bool Ps1 { get; set; }
+
     /// <summary>0 = sem céu estrelado (tema Claro); 1 = céu completo.</summary>
     public static double SkyOpacity { get; private set; } = 1.0;
 
@@ -65,6 +68,12 @@ public static class ThemeManager
             "#D9101114", "#FF2B2C33", "#1AFFFFFF", "#08FFFFFF",
             "#1C1D21", "#25262B", "#1A1B1F", "#7FE3A8", 0.4, 0.22),
 
+        // PlayStation 1: janelas azuis com borda clara e texto branco.
+        ["PS1"] = new Pal("#FFFFFF", "#FFFFFF", "#DDE4FF", "#9FB0F0",
+            "#552A3FB0", "#803A55D8", "#B8C9D6FF", "#CCFFFFFF", "#99000020", "#88000030",
+            "#E6000014", "#FF0E1F7A", "#E0182C96", "#E00A1460",
+            "#00000A", "#0A1250", "#00001E", "#7DFF9A", 0.0, 0.0),
+
         // Bem preto.
         ["Midnight"] = new Pal("#E9E9F2", "#FFFFFF", "#C0C0CC", "#8A8A9A",
             "#0FFFFFFF", "#1FFFFFFF", "#22FFFFFF", "#40FFFFFF", "#33000000", "#40000000",
@@ -80,6 +89,7 @@ public static class ThemeManager
         var theme = "Default";
         var code = "";
         var on = false;
+        var ps1 = false;
         var c1 = DefaultGold1;
         var c2 = DefaultGold2;
 
@@ -95,6 +105,8 @@ public static class ThemeManager
                     code = g.GetString() ?? "";
                 if (r.TryGetProperty("GoldPalettesOn", out var p))
                     on = p.ValueKind == JsonValueKind.True;
+                if (r.TryGetProperty("Ps1Mode", out var q))
+                    ps1 = q.ValueKind == JsonValueKind.True;
                 if (r.TryGetProperty("GoldColor1", out var a) && a.ValueKind == JsonValueKind.String)
                     c1 = ParseColor(a.GetString(), c1);
                 if (r.TryGetProperty("GoldColor2", out var b) && b.ValueKind == JsonValueKind.String)
@@ -103,6 +115,7 @@ public static class ThemeManager
         }
         catch { /* arquivo ruim: usa o tema padrão */ }
 
+        Ps1 = ps1;
         Apply(theme, on && GoldenMoon.IsValid(code), c1, c2);
     }
 
@@ -110,8 +123,8 @@ public static class ThemeManager
 
     public static void Apply(string theme, bool palettes, Color c1, Color c2)
     {
-        Current = theme is "Light" or "Dark" or "Midnight" ? theme : "Default";
-        PalettesOn = palettes;
+        Current = Ps1 ? "PS1" : (theme is "Light" or "Dark" or "Midnight" ? theme : "Default");
+        PalettesOn = palettes && !Ps1;
 
         var res = Application.Current?.Resources;
         if (res == null) return;
@@ -121,7 +134,13 @@ public static class ThemeManager
 
         // Cores de destaque: as padrão (lilás/azul) ou as duas paletas do Golden Moon.
         Color a1 = DefA1, a2 = DefA2, a3 = DefA3;
-        if (palettes)
+        if (Ps1)
+        {
+            a1 = Color.FromRgb(0x4D, 0x6D, 0xFF);
+            a2 = Color.FromRgb(0x9B, 0xBC, 0xFF);
+            a3 = Mix(a1, a2, 0.5);
+        }
+        else if (palettes)
         {
             a1 = c1;
             a2 = c2;
@@ -145,7 +164,7 @@ public static class ThemeManager
         res["CardBrush"] = Grad(Col(p.CardA), Col(p.CardB));
 
         // Fundo da janela: o degradê do tema, tingido pelas paletas quando elas estão ligadas.
-        var t = palettes ? p.Tint : 0.0;
+        var t = palettes && !Ps1 ? p.Tint : 0.0;
         var bg = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         bg.GradientStops.Add(new GradientStop(Mix(Col(p.Bg0), a1, t), 0));
         bg.GradientStops.Add(new GradientStop(Mix(Col(p.Bg1), a3, Math.Min(1, t * 1.15)), 0.55));
@@ -301,8 +320,9 @@ public partial class MainWindow
         _palC1 = ThemeManager.ParseColor(_state.GoldColor1, ThemeManager.DefaultGold1);
         _palC2 = ThemeManager.ParseColor(_state.GoldColor2, ThemeManager.DefaultGold2);
 
-        foreach (var rb in ThemePanel.Children.OfType<RadioButton>())
-            rb.IsChecked = (rb.Tag?.ToString() ?? "") == ThemeManager.Current;
+        if (_state.Ps1Mode) _state.Ps1Unlocked = true; // quem já usava o PS1 antes continua com o botão
+        UpdatePs1ThemeButton();
+        SyncThemeRadios();
 
         BuildPaletteEditor();
         BuildIconPickers();
@@ -331,17 +351,50 @@ public partial class MainWindow
             "Light" => "Tema Claro: branco suave que não cansa a vista.",
             "Dark" => "Tema Escuro: cinza escuro, com o céu bem discreto.",
             "Midnight" => "Tema Midnight: preto total, com estrelas bem de leve.",
+            "PS1" => "Tema PlayStation 1: menu de console, TV de tubo e abertura clássica. Escolha outro tema para voltar ao normal.",
             _ => "Tema Padrão: o céu estrelado do Moonlight."
         };
         if (ThemeManager.PalettesOn) ThemeInfo.Text += "  ·  Suas paletas Golden Moon estão ligadas.";
     }
 
+    private bool _themeSync;
+
+    // O botão PS1 só aparece depois que a pessoa usa o código secreto (ou se o tema já está ligado).
+    private void UpdatePs1ThemeButton()
+    {
+        if (Ps1ThemeBtn == null) return;
+        Ps1ThemeBtn.Visibility = _state.Ps1Unlocked || Ps1.On ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // Marca o botão certo na lista de temas (PS1 quando o tema PlayStation 1 está ligado), sem disparar o clique.
+    private void SyncThemeRadios()
+    {
+        if (ThemePanel == null) return;
+        _themeSync = true;
+        try
+        {
+            var want = Ps1.On ? "PS1" : _state.Theme;
+            foreach (var rb in ThemePanel.Children.OfType<RadioButton>())
+                rb.IsChecked = (rb.Tag?.ToString() ?? "") == want;
+        }
+        finally { _themeSync = false; }
+    }
+
     private void ThemeChoice_Checked(object sender, RoutedEventArgs e)
     {
-        if (!_themeUiReady || sender is not RadioButton rb) return;
-        _state.Theme = rb.Tag?.ToString() ?? "Default";
+        if (!_themeUiReady || _themeSync || sender is not RadioButton rb) return;
+        var tag = rb.Tag?.ToString() ?? "Default";
+
+        if (tag == "PS1")
+        {
+            if (!Ps1.On) Ps1Apply(true, true); // liga o tema com a abertura completa do console
+            return;
+        }
+
+        _state.Theme = tag;
         SaveState();
-        ApplyThemeNow();
+        if (Ps1.On) Ps1Apply(false, false); // sai do PS1 e já aplica o tema escolhido
+        else ApplyThemeNow();
     }
 
     private void ApplyThemeNow() =>
@@ -604,7 +657,7 @@ public partial class MainWindow
             ? "Obrigado por apoiar o Moonlight Launcher! Em Ajustes você cria suas paletas e troca os ícones; o criador de skin e o criador de modpacks já estão liberados."
             : "Já assinou? Cole abaixo o código de ativação que você recebeu. Ainda não assinou? Clique em “Assinar o Golden Moon”.";
 
-        GoldenCodeRow.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        GoldenCodeRow.Visibility = Visibility.Visible;
         GoldenSubscribeBtn.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
         GoldenCustomizeBtn.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         GoldenRemoveBtn.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
@@ -628,6 +681,36 @@ public partial class MainWindow
     private void GoldenActivate_Click(object sender, RoutedEventArgs e)
     {
         var code = GoldenCodeBox.Text;
+
+        // Código secreto: liga ou desliga o tema PlayStation 1.
+        if (Ps1.IsCode(code))
+        {
+            GoldenCodeBox.Text = "";
+
+            // Primeira vez: libera o tema, o botão aparece ao lado do Midnight e vem a conquista.
+            if (!_state.Ps1Unlocked && !Ps1.On)
+            {
+                _state.Ps1Unlocked = true;
+                SaveState();
+                UpdatePs1ThemeButton();
+                GoldenMsg.Text = "🎮 Tema PlayStation 1 desbloqueado! Escolha em Ajustes → Personalizar → Temas.";
+                ShowAchievement("CONQUISTA DESBLOQUEADA", "Tema PlayStation 1", "O botão PS1 apareceu em Ajustes → Temas, ao lado do Midnight.");
+                return;
+            }
+
+            if (Ps1.On)
+            {
+                Ps1Apply(false, false);
+                GoldenMsg.Text = "Tema PlayStation 1 desligado.";
+            }
+            else
+            {
+                GoldenMsg.Text = "🎮 Tema PlayStation 1 ligado!";
+                Ps1Apply(true, true);
+            }
+            return;
+        }
+
         if (!GoldenMoon.IsValid(code))
         {
             GoldenMsg.Text = "Esse código não é válido. Confira se digitou tudo certinho (são 16 letras e números).";

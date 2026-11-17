@@ -99,6 +99,79 @@ public static class Perf
 
     public static long WorkingSetMb => Environment.WorkingSet / (1024 * 1024);
 
+    // ---------- RAM do PC (para o Minecraft não pedir mais memória do que existe) ----------
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MemoryStatusEx
+    {
+        public uint dwLength;
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys;
+        public ulong ullAvailPhys;
+        public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
+        public ulong ullAvailVirtual;
+        public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx(ref MemoryStatusEx status);
+
+    private static bool TryReadRam(out long totalMb, out long availableMb)
+    {
+        totalMb = 0;
+        availableMb = 0;
+        try
+        {
+            var s = new MemoryStatusEx { dwLength = (uint)Marshal.SizeOf<MemoryStatusEx>() };
+            if (!GlobalMemoryStatusEx(ref s)) return false;
+            totalMb = (long)(s.ullTotalPhys / (1024 * 1024));
+            availableMb = (long)(s.ullAvailPhys / (1024 * 1024));
+            return totalMb > 0;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Maior RAM que dá para dar ao Minecraft com segurança neste PC (múltiplo de 512 MB).
+    /// Deixa pelo menos 2 GB (ou 25%) livres para o Windows, o launcher e o resto: dar toda a RAM ao
+    /// jogo é a causa mais comum de crash ("Could not reserve enough space for heap" / travadas).
+    /// </summary>
+    public static int MaxGameRamMb
+    {
+        get
+        {
+            if (!TryReadRam(out var total, out _)) return 8192; // não deu para ler: valor moderado
+            var reserve = Math.Max(2048L, total / 4);
+            var max = (int)Math.Min(16384L, total - reserve);
+            return Math.Max(1024, max / 512 * 512);
+        }
+    }
+
+    /// <summary>Limita a RAM pedida ao máximo seguro E ao que está realmente livre agora.</summary>
+    public static int ClampGameRam(int wantedMb)
+    {
+        var v = Math.Min(wantedMb, MaxGameRamMb);
+        if (TryReadRam(out _, out var avail))
+        {
+            var free = (int)Math.Min(int.MaxValue, avail - 768); // folga para o resto do sistema
+            if (free >= 1024 && v > free) v = free / 512 * 512;
+        }
+        return Math.Max(1024, v);
+    }
+
+    /// <summary>
+    /// Opções de JVM que deixam o Minecraft mais leve (menos travadinhas de memória). Só entra se o
+    /// jogo ainda não escolheu um coletor de lixo próprio, para nunca conflitar com a versão/loader.
+    /// </summary>
+    public static readonly string[] LightJvmFlags =
+    {
+        "-XX:+UseG1GC",
+        "-XX:MaxGCPauseMillis=100",
+    };
+
     /// <summary>Faz uma limpeza e devolve a memória que o launcher não está usando para o Windows.</summary>
     public static void TrimMemory()
     {

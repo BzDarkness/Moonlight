@@ -9,7 +9,7 @@
     <RootNamespace>MoonlightLauncher</RootNamespace>
     <AssemblyName>MoonlightLauncher</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <Version>1.6.2</Version>
+    <Version>1.9.0</Version>
     <!-- ATENÇÃO: não use InvariantGlobalization=true. O WPF precisa da cultura "en-us" para montar os
          templates dos controles; com ela ligada dá XamlParseException e os menus/listas/skins quebram. -->
     <InvariantGlobalization>false</InvariantGlobalization>
@@ -30,6 +30,8 @@
     <PackageReference Include="CmlLib.Core.Auth.Microsoft" Version="3.*" />
     <PackageReference Include="CmlLib.Core.Installer.Forge" Version="1.*" />
     <PackageReference Include="CmlLib.Core.Installer.NeoForge" Version="4.*" />
+    <!-- Chamadas de voz e som da tela compartilhada -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
   <!-- O GitHub Actions passa -p:UpdateRepo=dono/repositorio; o launcher lê daqui onde procurar Releases. -->
@@ -43,6 +45,10 @@
     <Resource Include="Assets\icon.ico" />
     <Resource Include="Assets\icons\*.png" />
     <Resource Include="Assets\versions\*.png" />
+    <Resource Include="Assets\ps1\*.png" />
+    <Resource Include="Assets\ps1\*.wav" />
+    <Resource Include="Assets\ps1\*.mp4" />
+    <Resource Include="Assets\lite\*.jpg" />
   </ItemGroup>
 
 </Project>

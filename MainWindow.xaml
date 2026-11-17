@@ -652,6 +652,96 @@
             </Setter>
         </Style>
 
+
+        <!-- Botão de tema com cor RGB animada (tema PS1). A animação fica no próprio Border (Border.Triggers), 20 quadros. -->
+        <Style x:Key="RgbThemeButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+                            <Border x:Name="Bd" CornerRadius="12" Padding="15,9" BorderBrush="#66FFFFFF" BorderThickness="1">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FFFF2D55" Offset="0"/>
+                                        <GradientStop Color="#FF2D8CFF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Triggers>
+                                    <EventTrigger RoutedEvent="Border.Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard Timeline.DesiredFrameRate="20">
+                                            <ColorAnimationUsingKeyFrames
+                                                Storyboard.TargetProperty="(Border.Background).(GradientBrush.GradientStops)[0].(GradientStop.Color)"
+                                                Duration="0:0:6" RepeatBehavior="Forever">
+                                                <LinearColorKeyFrame KeyTime="0:0:0" Value="#FFFF2D55"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:1" Value="#FFFFA000"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:2" Value="#FF22DD66"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:3" Value="#FF00C8FF"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:4" Value="#FF5A4BFF"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:5" Value="#FFFF2DD0"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:6" Value="#FFFF2D55"/>
+                                            </ColorAnimationUsingKeyFrames>
+                                            <ColorAnimationUsingKeyFrames
+                                                Storyboard.TargetProperty="(Border.Background).(GradientBrush.GradientStops)[1].(GradientStop.Color)"
+                                                Duration="0:0:6" RepeatBehavior="Forever" BeginTime="-0:0:3">
+                                                <LinearColorKeyFrame KeyTime="0:0:0" Value="#FFFF2D55"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:1" Value="#FFFFA000"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:2" Value="#FF22DD66"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:3" Value="#FF00C8FF"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:4" Value="#FF5A4BFF"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:5" Value="#FFFF2DD0"/>
+                                                <LinearColorKeyFrame KeyTime="0:0:6" Value="#FFFF2D55"/>
+                                            </ColorAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Border.Triggers>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="On" CornerRadius="12" Opacity="0" IsHitTestVisible="False"
+                                    BorderBrush="White" BorderThickness="2.5"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard><Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1.05" Duration="0:0:0.14"/>
+                                        <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1.05" Duration="0:0:0.14"/>
+                                    </Storyboard></BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard><Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.18"/>
+                                        <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.18"/>
+                                    </Storyboard></BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard><Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="On" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.22"/>
+                                    </Storyboard></BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard><Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="On" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"/>
+                                    </Storyboard></BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Tile de versão -->
         <Style x:Key="VersionItem" TargetType="ListBoxItem">
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -1144,12 +1234,12 @@
             <!-- ===== LAYOUT: barra lateral + conteúdo ===== -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="92"/>
+                    <ColumnDefinition x:Name="SideCol" Width="92"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Barra lateral -->
-                <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0">
+                <Border x:Name="SideBar" Grid.Column="0" Background="{DynamicResource SidebarBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="96"/>
@@ -1717,6 +1807,13 @@
                                     </StackPanel>
                                 </Border>
                                 <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsSystem}" Value="True">
+                                        <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter TargetName="Bubble" Property="CornerRadius" Value="12"/>
+                                        <Setter TargetName="Bubble" Property="Background" Value="{DynamicResource AccB1_33}"/>
+                                        <Setter TargetName="Msg" Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+                                        <Setter TargetName="Msg" Property="FontSize" Value="12.5"/>
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding Mine}" Value="True">
                                         <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right"/>
                                         <Setter TargetName="Bubble" Property="CornerRadius" Value="14,14,3,14"/>
@@ -2018,12 +2115,17 @@
                                                                    Foreground="{DynamicResource Muted}"/>
                                                     </StackPanel>
                                                 </StackPanel>
-                                                <Button Grid.Column="2" Content="🗑" Style="{StaticResource IconBtn}" ToolTip="Remover amigo" Click="FriendRemove_Click"/>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Button x:Name="CallBtn" Content="📞" Style="{StaticResource IconBtn}" ToolTip="Ligar (chamada de voz)" Click="CallStart_Click"/>
+                                                    <Button Content="🗑" Style="{StaticResource IconBtn}" ToolTip="Remover amigo" Click="FriendRemove_Click"/>
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
 
                                         <!-- mundo do amigo -->
-                                        <Border x:Name="WorldPanel" Grid.Row="1" Margin="14,10,14,0" Padding="14,10" CornerRadius="14"
+                                        <StackPanel Grid.Row="1">
+                                        <local:CallStage x:Name="CallStageCtl"/>
+                                        <Border x:Name="WorldPanel" Margin="14,10,14,0" Padding="14,10" CornerRadius="14"
                                                 BorderThickness="1" BorderBrush="{DynamicResource AccB1_FF}" Visibility="Collapsed"
                                                 Background="{DynamicResource AccB1_33}">
                                             <Grid>
@@ -2041,6 +2143,7 @@
                                                         FontSize="13.5" Padding="18,10" Margin="14,0,0,0" Click="WorldJoin_Click"/>
                                             </Grid>
                                         </Border>
+                                    </StackPanel>
 
                                         <!-- mensagens (fundo mais escuro, como num app de mensagens) -->
                                         <Border Grid.Row="2" Margin="0,10,0,0" Background="#14000000">
@@ -3003,7 +3106,7 @@
                                     <TextBlock Text="⚡  Desempenho" FontSize="17" FontWeight="Bold"/>
                                     <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Muted}" FontSize="12.5"
                                                Margin="0,6,0,14"
-                                               Text="O modo Automático liga o visual leve sozinho em PCs mais fracos. Você pode forçar um dos dois."/>
+                                               Text="O modo Automático liga o visual leve sozinho em PCs mais fracos. O modo Leve troca o launcher por uma janelinha simples (conta, versão e Jogar), sem animações e com bem pouca memória; dentro dela dá para voltar para a completa."/>
                                     <WrapPanel x:Name="PerfPanel">
                                         <RadioButton Style="{StaticResource LoaderButton}" Tag="Auto" GroupName="perf"
                                                      Content="🤖  Automático" Checked="PerfMode_Checked"/>
@@ -3095,6 +3198,8 @@
                                                      Content="🌓  Escuro" Checked="ThemeChoice_Checked"/>
                                         <RadioButton Style="{StaticResource LoaderButton}" Tag="Midnight" GroupName="theme"
                                                      Content="🌌  Midnight" Checked="ThemeChoice_Checked"/>
+                                        <RadioButton x:Name="Ps1ThemeBtn" Visibility="Collapsed" Style="{StaticResource RgbThemeButton}" Tag="PS1" GroupName="theme"
+                                                     Content="🎮  PS1" Checked="ThemeChoice_Checked"/>
                                     </WrapPanel>
                                     <TextBlock x:Name="ThemeInfo" FontSize="12.5" Foreground="{DynamicResource Text2Brush}"
                                                Margin="2,6,0,0" TextWrapping="Wrap"/>

@@ -2,6 +2,34 @@
 
 Launcher de Minecraft Java para Windows, feito em C# + WPF + CmlLib.Core.
 
+## Novidades da versão 1.8.9 — Compartilhar tela de verdade 🖥️📞
+
+- **Janelinha "Configurar compartilhamento"** ao clicar em 🖥: resolução (**4K, 1080p, 720p, 480p**), quadros por segundo (**15, 30, 60**) e "Compartilhar áudio". **1080p, 4K e 60 fps só com o Golden Moon**: sem ele essas opções mostram um 🔒 e levam para a aba Golden Moon. Sem o Golden Moon o máximo é 720p e 30 fps.
+- **Janelinha "Escolha o que compartilhar"**: abas **Janela** (com miniatura e ícone de cada janela aberta) e **Tela inteira** (um cartão por monitor). Duplo clique compartilha na hora. Se a janela compartilhada for fechada, a transmissão para sozinha. Janelas de jogo que saem pretas na captura são copiadas direto da tela.
+- **Quem assiste não fica com a tela tomada:** a transmissão aparece em **metade** do launcher (a conversa continua à vista) e o botão **⛶ Tela inteira** abre em tela cheia; lá, **◧ Voltar para metade** (ou Esc) volta.
+- **Supressão de ruído do microfone** nas chamadas (ligada por padrão; em ⚙ dá para desligar). Tira ventilador, chiado e barulho de fundo sem biblioteca extra (`NoiseSuppressor.cs`).
+- **Foto de quem fala na barrinha da chamada** (a que fica por cima de tudo, até do Minecraft): aparece o rosto de quem está falando, com anel verde; se os dois falam, aparecem os dois. Sem ninguém falando, fica só o ícone da chamada.
+- A captura agora poupa CPU e internet: pula quadros quando a rede ainda está enviando o anterior (o fps real cai sozinho, a imagem nunca atrasa).
+
+## Novidades da versão 1.8.8 — PS1 secreto + conquista 🏆🎮
+
+- **O botão PS1 só aparece depois do código secreto.** Digitar o código na aba Golden Moon libera o tema pela primeira vez; o botão (RGB animado) surge ao lado do Midnight em **Ajustes → Personalizar → Temas**. Quem já usava o PS1 continua com o botão.
+- **Conquista desbloqueada:** painel no alto da tela com uma linha reta em RGB, cores correndo da esquerda para a direita, brilho branco passando e um som de item raro (`Assets/ps1/achievement.wav`, original).
+- Com o tema já liberado, digitar o código de novo liga/desliga o PS1, como antes.
+
+## Novidades da versão 1.8.7 — Logo do PS1 limpo 🎮🌙
+
+- **Quadrado sumiu de vez:** era o brilho roxo atrás do logo, que o WPF cortava num retângulo. O brilho foi removido.
+- **Logo parado:** sem brilho pulsando, sem giro e sem brilhinhos. Ele só entra na tela na abertura do tema.
+- **Novo logo** (emblema pixelado) com fundo transparente.
+
+## Novidades da versão 1.8.5 — Tema PS1 sem quadrado e sem travar 🎮🌙
+
+- **Botão PS1 nos temas:** em **Ajustes → Personalizar → Temas** o botão **🎮 PS1** fica ao lado do Midnight, com a cor em **RGB animado**. Clicar liga o tema com a abertura do console; escolher outro tema desliga. O código secreto continua funcionando e o botão acompanha.
+- **Quadrado em volta do logo sumiu:** o logo girava dentro de um `Viewport3D`, que numa janela com `AllowsTransparency` era desenhado por software e aparecia numa caixa escura. Agora é uma imagem 2D com giro falso (largura + inclinação).
+- **Fundo animado:** losangos coloridos subindo devagar atrás do menu e das abas (some no modo Leve), além do céu que desliza.
+- **Muito mais leve:** sem `DropShadowEffect` nos botões do menu, scanlines/vinheta e brilho do logo em cache de bitmap com pincéis congelados, céu em cache, animações ambientes a 30 quadros e imagem do logo decodificada num tamanho menor.
+
 ## Novidades da versão com a interface nova 🌙
 
 - **Interface refeita:** barra lateral, céu estrelado com estrelas piscando, auroras, estrelas cadentes e efeito de profundidade com o mouse.
@@ -10,6 +38,26 @@ Launcher de Minecraft Java para Windows, feito em C# + WPF + CmlLib.Core.
 - **Skin em 3D:** na aba Skins e na tela Jogar, o boneco da conta aparece em 3D e a cabeça acompanha o mouse (como no inventário do jogo). Sem skin, aparece um boneco lunar.
 - **OptiFine automático:** nos modos *OptiFine* e *Forge + OptiFine* a lista mostra as versões que têm OptiFine. Ao clicar em Jogar, o OptiFine da versão exata é baixado e instalado sozinho (sem perguntar). O botão "Usar meu .jar" ficou só como opção avançada.
 - **Aba Ajustes (otimização):** modo Automático / Completo / Leve, memória em uso, "Liberar memória agora" e "Limpar cache". Minimizado ou jogando, as animações e o 3D param por completo.
+
+## Novidades da versão 1.7.0 — Chamadas com os amigos 📞🌙
+
+- **Ligar para amigos:** botão **📞** no topo da conversa. O amigo recebe uma janelinha com o rosto da skin, toque e botões **Atender / Recusar** (funciona até com o Minecraft aberto). Respeita o **Não perturbe**.
+- **Painel da chamada (estilo Discord):** aparece no alto da conversa, com os dois rostos redondos, anel verde de quem está falando e selo vermelho de microfone desligado. Botões: 🎙 mudo, 🎧 surdo, 🖥 compartilhar tela, ⚙ volumes e 📞 desligar.
+- **Compartilhar tela com som:** o amigo vê sua tela (e pode abrir em tela cheia). Em ⚙ dá para incluir ou não o **som do PC**. A captura só liga quando o amigo está assistindo. Use fones para ele não ouvir a própria voz de volta.
+- **Barrinha da chamada:** se você sair da conversa ou o jogo abrir, uma barrinha por cima de tudo mostra o tempo, mudo e desligar (duplo clique abre a conversa).
+- **Histórico no chat:** "Você iniciou uma chamada", "Chamada encerrada · 5 min", "Chamada perdida"…
+- **Precisa do servidor atualizado:** troque os arquivos do seu serviço no Render pelos da pasta `servidor-amigos/` (agora ele também faz as chamadas em `/call`). Amigos, chat e mundos continuam iguais.
+- Novo pacote: **NAudio** (áudio). O GitHub Actions baixa sozinho.
+
+## Novidades da versão 1.6.3 — Atualização e amigos corrigidos 🌙🔧
+
+- **Atualizações:** a verificação não é mais pulada quando o launcher está ocupado na abertura (ela insiste até conseguir e depois confere de 15 em 15 min). Se a API do GitHub falhar, usa o site como plano B. Aceita tag `v1.6.3`/`1.6.3`, escolhe a maior Release (mesmo se a última for "pre-release") e aceita o `.exe` mesmo se o GitHub renomear o arquivo. O download tem 3 tentativas e sem limite de 60 s. A trava contra loop não bloqueia mais uma versão cuja troca falhou. **Ajustes → Atualizações → Verificar** agora diz exatamente o motivo (sem Release, Release sem `.exe`, versão igual, etc.).
+- **Amigos:** janelinha **"ficou online"** e **"entrou no Minecraft"** (respeita Não perturbe e o som). O mundo aberto para LAN agora também é detectado pelo aviso UDP do próprio Minecraft (funciona em qualquer versão/idioma) e pelo texto do log mesmo sem `[CHAT]`. Quando você sai do mundo, ele deixa de ser compartilhado sozinho. Na lista aparece "🎮 Jogando Minecraft x.y" quando o servidor repassa o campo `game`.
+
+## Novidades da versão 1.6.3 — Atualização e amigos corrigidos 🌙🔧
+
+- **Atualizações:** a verificação não é mais pulada quando o launcher está ocupado na abertura (ela insiste até conseguir e depois confere de 15 em 15 min). Se a API do GitHub falhar, usa o site como plano B. Aceita tag `v1.6.3`/`1.6.3`, escolhe a maior Release (mesmo se a última for "pre-release") e aceita o `.exe` mesmo se o GitHub renomear o arquivo. O download tem 3 tentativas e sem limite de 60 s. A trava contra loop não bloqueia mais uma versão cuja troca falhou. **Ajustes → Atualizações → Verificar** agora diz exatamente o motivo (sem Release, Release sem `.exe`, versão igual, etc.).
+- **Amigos:** janelinha **"ficou online"** e **"entrou no Minecraft"** (respeita Não perturbe e o som). O mundo aberto para LAN agora também é detectado pelo aviso UDP do próprio Minecraft (funciona em qualquer versão/idioma) e pelo texto do log mesmo sem `[CHAT]`. Quando você sai do mundo, ele deixa de ser compartilhado sozinho. Na lista aparece "🎮 Jogando Minecraft x.y" quando o servidor repassa o campo `game`.
 
 ## Novidades da versão 1.6.2
 
@@ -205,3 +253,10 @@ Observação: não foi possível compilar aqui (sem .NET). Rode `dotnet build` e
   sai pré-compilado (ReadyToRun) para abrir mais rápido.
 - **Editor de skin → `🧍 Pintar em 3D por parte`**: escolha cabeça / corpo / braço / perna e pinte direto na peça 3D
   (botão direito arrasta para girar, rodinha dá zoom, clique rápido direito = conta-gotas). Camada base ou externa.
+
+## Modo Leve (interface simples)
+
+Em **Ajustes → Desempenho → 🍃 Leve** o launcher troca a janela grande por uma janelinha simples, parecida com o
+Legacy Launcher (conta, modo, versão, **Jogar** e quatro botões), com o fundo da noite chuvosa (`Assets/lite/bg.jpg`).
+Dentro dela, o botão ☰ → *Configurações* tem a RAM e o botão para voltar à interface completa.
+Código: `LiteWindow.cs`, `LiteDialogs.cs` e `MainWindow.Lite.cs`.

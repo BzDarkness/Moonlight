@@ -135,6 +135,12 @@ public partial class MainWindow
     {
         var id = ++_launchAnimId;
 
+        if (_lite != null)
+        {
+            _lite.OnGameStarted(); // interface leve: só esconde (ou minimiza) a janelinha
+            return;
+        }
+
         if (WindowState == WindowState.Minimized || double.IsNaN(Left) || double.IsNaN(Top))
         {
             Hide();
@@ -265,6 +271,10 @@ public partial class MainWindow
         _state.PerfMode = mode;
         SaveState();
         Perf.Apply(mode);
+
+        // "Leve" troca a janela grande pela interface leve; qualquer outro modo volta para a completa.
+        if (mode == "Light") EnterLiteMode();
+        else ExitLiteMode();
     }
 
     private void UpdatePerfTexts()
@@ -355,10 +365,10 @@ public partial class MainWindow
     // Acha o Java que o Minecraft dessa versão usa (e garante o Minecraft original instalado).
     private async Task<string> FindJavaAsync(string mc)
     {
-        var probe = await _launcher.InstallAndBuildProcessAsync(mc, new MLaunchOption
+        var probe = await HttpTimeouts.RetryAsync(() => _launcher.InstallAndBuildProcessAsync(mc, new MLaunchOption
         {
             Session = MSession.CreateOfflineSession("Jogador")
-        });
+        }), s => StatusText.Text = s);
         return probe.StartInfo.FileName;
     }
 

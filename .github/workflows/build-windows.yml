@@ -66,11 +66,15 @@ jobs:
           -p:UpdateRepo=${{ github.repository }}
           -o "${{ github.workspace }}/publish"
 
+      # Se a cota de armazenamento do GitHub estiver cheia, este passo não derruba o build
+      # (o .exe da Release, abaixo, não depende dele). Fica só 1 dia para gastar pouco espaço.
       - name: Upload launcher EXE
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: MoonlightLauncher-Windows-x64
           path: publish/MoonlightLauncher.exe
+          retention-days: 1
           if-no-files-found: error
 
       # So roda quando voce cria uma Release/tag "v..." : anexa o .exe para o auto-update achar.
