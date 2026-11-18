@@ -18,7 +18,7 @@ public sealed record LiteItem(string Text, object? Value)
 
 /// <summary>
 /// Interface LEVE: uma janelinha simples, parecida com o Legacy Launcher (conta, versão, Jogar e quatro botões),
-/// com o fundo da noite chuvosa. Sem animações, sem estrelas, sem 3D, sem amigos na tela: quase não usa memória.
+/// com o fundo da lua sobre as cerejeiras. Sem animações, sem estrelas, sem 3D, sem amigos na tela: quase não usa memória.
 /// Toda a lógica (contas, versões, instalar e abrir o jogo) continua na MainWindow; esta janela só mostra e pede.
 /// </summary>
 public sealed class LiteWindow : Window
@@ -51,7 +51,7 @@ public sealed class LiteWindow : Window
         MinWidth = 640;
         MinHeight = 460;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x10, 0x20));
+        Background = new SolidColorBrush(Color.FromRgb(0x08, 0x0B, 0x1A));
         FontFamily = new FontFamily("Segoe UI");
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
@@ -59,16 +59,23 @@ public sealed class LiteWindow : Window
         try { Icon = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/icon.ico")); }
         catch { /* sem ícone: não é crítico */ }
 
+        LiteTheme.Apply(this);
+
         var root = new Grid();
         var bg = LoadBackground();
         if (bg != null)
         {
             var img = new Image { Source = bg, Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
-            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.LowQuality);
+            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.Fant);
             root.Children.Add(img);
         }
-        // Um véu escuro bem leve, só para o painel e o texto sempre ficarem legíveis.
-        root.Children.Add(new Border { Background = new SolidColorBrush(Color.FromArgb(0x30, 0, 0, 0)), IsHitTestVisible = false });
+        // Véu em degradê: deixa a lua e as cerejeiras claras em cima e escurece embaixo, para o painel destacar.
+        root.Children.Add(new Border
+        {
+            IsHitTestVisible = false,
+            Background = new LinearGradientBrush(
+                Color.FromArgb(0x10, 0x05, 0x07, 0x18), Color.FromArgb(0x80, 0x05, 0x07, 0x18), 90)
+        });
         root.Children.Add(BuildPanel());
         Content = root;
 
@@ -102,7 +109,7 @@ public sealed class LiteWindow : Window
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.UriSource = new Uri("pack://application:,,,/Assets/lite/bg.jpg");
-            bmp.DecodePixelWidth = 1280;            // não guarda mais pixels do que precisa
+            bmp.DecodePixelWidth = 1472;            // tamanho da própria imagem: não guarda pixels a mais
             bmp.CacheOption = BitmapCacheOption.OnLoad;
             bmp.EndInit();
             bmp.Freeze();
@@ -115,162 +122,221 @@ public sealed class LiteWindow : Window
         }
     }
 
-    private static Style ParseStyle(string xaml, params (string Key, string Value)[] map)
+    private static BitmapImage? LoadLogo()
     {
-        foreach (var (k, v) in map) xaml = xaml.Replace(k, v);
-        return (Style)XamlReader.Parse(xaml);
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri("pack://application:,,,/Assets/logo.png");
+            bmp.DecodePixelWidth = 112;
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch { return null; }
     }
 
-    // Botão chapado (sem o brilho azul padrão do Windows): fundo, fundo ao passar o mouse e ao apertar.
-    private const string FlatButtonXaml = @"
-<Style xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation""
-       xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"" TargetType=""Button"">
-  <Setter Property=""Background"" Value=""@BG""/>
-  <Setter Property=""Foreground"" Value=""@FG""/>
-  <Setter Property=""BorderBrush"" Value=""#40000000""/>
-  <Setter Property=""BorderThickness"" Value=""1""/>
-  <Setter Property=""Cursor"" Value=""Hand""/>
-  <Setter Property=""Focusable"" Value=""False""/>
-  <Setter Property=""Template"">
-    <Setter.Value>
-      <ControlTemplate TargetType=""Button"">
-        <Border x:Name=""Bd"" Background=""{TemplateBinding Background}"" BorderBrush=""{TemplateBinding BorderBrush}""
-                BorderThickness=""{TemplateBinding BorderThickness}"">
-          <ContentPresenter HorizontalAlignment=""Center"" VerticalAlignment=""Center""/>
-        </Border>
-        <ControlTemplate.Triggers>
-          <Trigger Property=""IsMouseOver"" Value=""True"">
-            <Setter TargetName=""Bd"" Property=""Background"" Value=""@HOVER""/>
-          </Trigger>
-          <Trigger Property=""IsPressed"" Value=""True"">
-            <Setter TargetName=""Bd"" Property=""Background"" Value=""@PRESS""/>
-          </Trigger>
-          <Trigger Property=""IsEnabled"" Value=""False"">
-            <Setter TargetName=""Bd"" Property=""Opacity"" Value=""0.55""/>
-          </Trigger>
-        </ControlTemplate.Triggers>
-      </ControlTemplate>
-    </Setter.Value>
-  </Setter>
-</Style>";
-
+    /// <summary>Botão de vidro usado nos diálogos e nos ícones (mantido com o mesmo nome e assinatura de antes).</summary>
     internal static Style FlatButton(string bg, string hover, string press, string fg) =>
-        ParseStyle(FlatButtonXaml, ("@BG", bg), ("@HOVER", hover), ("@PRESS", press), ("@FG", fg));
+        LiteTheme.Glass(bg, hover, press, fg);
 
+    /// <summary>Linha fina com degradê (some nas pontas), no lugar da linha branca reta.</summary>
     private static Border Rule() => new()
     {
         Height = 1,
-        Background = new SolidColorBrush(Color.FromArgb(0x90, 0xFF, 0xFF, 0xFF)),
-        Margin = new Thickness(0, 0, 0, 0)
+        Margin = new Thickness(0, 0, 0, 0),
+        Background = new LinearGradientBrush(new GradientStopCollection
+        {
+            new GradientStop(Color.FromArgb(0x00, 0xF7, 0xA8, 0xD3), 0),
+            new GradientStop(Color.FromArgb(0xB0, 0xF7, 0xA8, 0xD3), 0.5),
+            new GradientStop(Color.FromArgb(0x00, 0xF7, 0xA8, 0xD3), 1)
+        }, 0)
     };
+
+    /// <summary>Rótulo pequeno em cima de cada campo (CONTA, MODO, VERSÃO).</summary>
+    private static TextBlock Caption(string text, Thickness margin) => new()
+    {
+        Text = text,
+        FontSize = 10.5,
+        FontWeight = FontWeights.SemiBold,
+        Foreground = LiteTheme.B(LiteTheme.Label),
+        Margin = margin
+    };
+
+    private static UIElement BuildHeader()
+    {
+        var g = new Grid { Margin = new Thickness(0, 22, 0, 16) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var logo = LoadLogo();
+        if (logo != null)
+        {
+            var img = new Image { Source = logo, Width = 46, Height = 46, Margin = new Thickness(0, 0, 12, 0), IsHitTestVisible = false };
+            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+            g.Children.Add(img);
+        }
+
+        var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        texts.Children.Add(new TextBlock
+        {
+            Text = "MOONLIGHT",
+            FontSize = 23,
+            FontWeight = FontWeights.Bold,
+            Foreground = LiteTheme.B("#FFFFFF")
+        });
+        texts.Children.Add(new TextBlock
+        {
+            Text = "Launcher  ·  " + Updater.CurrentText + "  ·  modo leve",
+            FontSize = 11.5,
+            Foreground = LiteTheme.B(LiteTheme.Label),
+            Margin = new Thickness(1, 1, 0, 0)
+        });
+        Grid.SetColumn(texts, 1);
+        g.Children.Add(texts);
+        return g;
+    }
+
+    private void StyleCombo(ComboBox c, string tip)
+    {
+        c.Height = 38;
+        c.FontSize = 14;
+        c.VerticalContentAlignment = VerticalAlignment.Center;
+        c.ToolTip = tip;
+    }
 
     private UIElement BuildPanel()
     {
         var stack = new StackPanel();
+        stack.Children.Add(BuildHeader());
         stack.Children.Add(Rule());
 
         // Conta
-        _accountBox.Height = 32;
-        _accountBox.FontSize = 14;
-        _accountBox.VerticalContentAlignment = VerticalAlignment.Center;
-        _accountBox.Margin = new Thickness(0, 14, 0, 6);
-        _accountBox.ToolTip = "Conta";
+        stack.Children.Add(Caption("CONTA", new Thickness(2, 16, 0, 5)));
+        StyleCombo(_accountBox, "Conta");
+        _accountBox.Margin = new Thickness(0, 0, 0, 12);
         _accountBox.SelectionChanged += AccountBox_Changed;
         stack.Children.Add(_accountBox);
 
         // Modo (Vanilla, Fabric…) e versão
-        var row = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        var row = new Grid { Margin = new Thickness(0, 0, 0, 12) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        _loaderBox.Height = 32;
-        _loaderBox.FontSize = 14;
-        _loaderBox.VerticalContentAlignment = VerticalAlignment.Center;
-        _loaderBox.ToolTip = "Modo (Vanilla, Fabric, Forge…)";
+        var capLoader = Caption("MODO", new Thickness(2, 0, 0, 5));
+        Grid.SetColumn(capLoader, 0);
+        row.Children.Add(capLoader);
+        var capVersion = Caption("VERSÃO", new Thickness(2, 0, 0, 5));
+        Grid.SetColumn(capVersion, 2);
+        row.Children.Add(capVersion);
+
+        StyleCombo(_loaderBox, "Modo (Vanilla, Fabric, Forge…)");
         _loaderBox.ItemsSource = Enum.GetValues<Loader>()
             .Select(l => new LiteItem(MainWindow.LiteLoaderTitle(l), l)).ToList();
         _loaderBox.SelectionChanged += LoaderBox_Changed;
+        Grid.SetRow(_loaderBox, 1);
         Grid.SetColumn(_loaderBox, 0);
         row.Children.Add(_loaderBox);
 
-        _versionBox.Height = 32;
-        _versionBox.FontSize = 14;
-        _versionBox.VerticalContentAlignment = VerticalAlignment.Center;
-        _versionBox.ToolTip = "Versão do Minecraft (✔ = já baixada)";
+        StyleCombo(_versionBox, "Versão do Minecraft (✔ = já baixada)");
         _versionBox.SelectionChanged += VersionBox_Changed;
+        Grid.SetRow(_versionBox, 1);
         Grid.SetColumn(_versionBox, 2);
         row.Children.Add(_versionBox);
         stack.Children.Add(row);
 
         // Opções
         _onlyInstalled.Content = "Só versões baixadas";
-        _onlyInstalled.Foreground = Brushes.White;
         _onlyInstalled.FontSize = 13;
-        _onlyInstalled.Margin = new Thickness(2, 2, 0, 3);
+        _onlyInstalled.Margin = new Thickness(2, 2, 0, 8);
         _onlyInstalled.Click += (_, _) => RefreshVersions();
         stack.Children.Add(_onlyInstalled);
 
         _hideOnPlay.Content = "Esconder o launcher ao jogar";
-        _hideOnPlay.Foreground = Brushes.White;
         _hideOnPlay.FontSize = 13;
-        _hideOnPlay.Margin = new Thickness(2, 0, 0, 12);
+        _hideOnPlay.Margin = new Thickness(2, 0, 0, 16);
         _hideOnPlay.IsChecked = true;
         stack.Children.Add(_hideOnPlay);
 
         stack.Children.Add(Rule());
 
         // Jogar
-        _playBtn.Content = "Jogar";
-        _playBtn.Height = 46;
-        _playBtn.FontSize = 18;
+        _playBtn.Content = "JOGAR";
+        _playBtn.Height = 52;
+        _playBtn.FontSize = 19;
         _playBtn.FontWeight = FontWeights.Bold;
-        _playBtn.Margin = new Thickness(0, 14, 0, 6);
-        _playBtn.Style = FlatButton("#FFFFFF", "#E8EEF8", "#CAD4E6", "#111111");
+        _playBtn.Margin = new Thickness(0, 18, 0, 12);
+        _playBtn.Style = LiteTheme.Primary();
         _playBtn.Click += Play_Click;
         stack.Children.Add(_playBtn);
 
-        // Quatro botões, como no Legacy Launcher
-        var icons = new UniformGrid { Columns = 4, Height = 34, Margin = new Thickness(0, 0, 0, 0) };
-        icons.Children.Add(IconButton("", "#2F7DE1", "Contas", () => OpenAccounts()));
-        icons.Children.Add(IconButton("", "#F29A1D", "Abrir a pasta do jogo (.minecraft)", () => _main.LiteOpenFolder("")));
-        icons.Children.Add(IconButton("", "#2FA84F", "Atualizar as versões baixadas", () =>
+        // Quatro botões de ícone
+        var icons = new UniformGrid { Columns = 4, Height = 38, Margin = new Thickness(-3, 0, -3, 0) };
+        icons.Children.Add(IconButton("\uE77B", "#8FBFFF", "Contas", () => OpenAccounts()));
+        icons.Children.Add(IconButton("\uE8B7", "#FFC770", "Abrir a pasta do jogo (.minecraft)", () => _main.LiteOpenFolder("")));
+        icons.Children.Add(IconButton("\uE72C", "#7FEBB0", "Atualizar as versões baixadas", () =>
         {
             _main.LiteRescan();
             RefreshVersions();
         }));
-        var menuBtn = IconButton("", "#111111", "Menu", null);
+        var menuBtn = IconButton("\uE700", "#F7A8D3", "Menu", null);
         menuBtn.Click += (_, _) => ShowMenu(menuBtn);
         icons.Children.Add(menuBtn);
         stack.Children.Add(icons);
 
         // Progresso e mensagem
-        _bar.Height = 5;
-        _bar.Margin = new Thickness(0, 10, 0, 0);
+        _bar.Height = 6;
+        _bar.Margin = new Thickness(0, 14, 0, 0);
         _bar.Visibility = Visibility.Hidden;
-        _bar.Foreground = new SolidColorBrush(Color.FromRgb(0x6C, 0xB6, 0xFF));
-        _bar.Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF));
+        _bar.Foreground = LiteTheme.B("#F27DBA");
+        _bar.Background = LiteTheme.B("#33FFFFFF");
         _bar.BorderThickness = new Thickness(0);
         stack.Children.Add(_bar);
 
-        _status.Foreground = Brushes.White;
+        _status.Foreground = LiteTheme.B(LiteTheme.Soft);
         _status.FontSize = 12;
         _status.TextWrapping = TextWrapping.Wrap;
         _status.TextAlignment = TextAlignment.Center;
-        _status.Margin = new Thickness(0, 6, 0, 0);
+        _status.Margin = new Thickness(0, 8, 0, 0);
         _status.MinHeight = 16;
         stack.Children.Add(_status);
 
-        // Painel translúcido no meio (como o do Legacy Launcher)
-        return new Border
+        // Painel de vidro escuro no meio. A sombra fica numa camada separada (atrás), para não borrar o texto.
+        var shape = new Func<Border>(() => new Border
         {
-            Width = 340,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Padding = new Thickness(0, 0, 0, 14),
-            Background = new SolidColorBrush(Color.FromArgb(0x58, 0xFF, 0xFF, 0xFF)),
-            Child = new Border { Padding = new Thickness(22, 0, 22, 0), Child = stack }
+            CornerRadius = new CornerRadius(20),
+            Background = new LinearGradientBrush(
+                Color.FromArgb(0xD8, 0x13, 0x18, 0x38), Color.FromArgb(0xE6, 0x0A, 0x0D, 0x22), 90)
+        });
+
+        var shadow = shape();
+        shadow.Effect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = Colors.Black, BlurRadius = 40, ShadowDepth = 8, Opacity = 0.55
         };
+        shadow.IsHitTestVisible = false;
+
+        var panel = shape();
+        panel.BorderBrush = new LinearGradientBrush(
+            Color.FromArgb(0x88, 0xF7, 0xA8, 0xD3), Color.FromArgb(0x30, 0x8B, 0x5C, 0xF6), 90);
+        panel.BorderThickness = new Thickness(1);
+        panel.Padding = new Thickness(26, 0, 26, 20);
+        panel.Child = stack;
+
+        var holder = new Grid
+        {
+            Width = 380,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        holder.Children.Add(shadow);
+        holder.Children.Add(panel);
+        return holder;
     }
 
     private static Button IconButton(string glyph, string color, string tip, Action? onClick)
@@ -282,11 +348,11 @@ public sealed class LiteWindow : Window
                 Text = glyph,
                 FontFamily = new FontFamily("Segoe MDL2 Assets"),
                 FontSize = 18,
-                Foreground = (Brush)new BrushConverter().ConvertFromString(color)!
+                Foreground = LiteTheme.B(color)
             },
             ToolTip = tip,
-            Margin = new Thickness(0, 0, 4, 0),
-            Style = FlatButton("#FFFFFF", "#E8EEF8", "#CAD4E6", "#111111")
+            Margin = new Thickness(3, 0, 3, 0),
+            Style = LiteTheme.Glass("#2BFFFFFF", "#4DF27DBA", "#66F27DBA", "#FFFFFF")
         };
         if (onClick != null) b.Click += (_, _) => onClick();
         return b;
@@ -297,6 +363,8 @@ public sealed class LiteWindow : Window
     private void ShowMenu(Button anchor)
     {
         var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Top };
+        menu.Resources[typeof(MenuItem)] = LiteTheme.Parse(LiteTheme.MenuItemXaml);
+        menu.Style = LiteTheme.Parse(LiteTheme.ContextMenuXaml);
 
         MenuItem Item(string text, Action act)
         {
@@ -308,7 +376,7 @@ public sealed class LiteWindow : Window
         menu.Items.Add(Item("⚙  Configurações…", OpenSettings));
         menu.Items.Add(Item("📦  Pasta de mods", () => _main.LiteOpenFolder("mods")));
         menu.Items.Add(Item("📜  Log do launcher", _main.LiteOpenLog));
-        menu.Items.Add(new Separator());
+        menu.Items.Add(new Border { Height = 1, Margin = new Thickness(8, 3, 8, 3), Background = LiteTheme.B("#33FFFFFF") });
         menu.Items.Add(Item("🖥  Usar a interface completa", () => _main.LiteSetPerfMode("Full")));
         menu.IsOpen = true;
     }
@@ -332,7 +400,7 @@ public sealed class LiteWindow : Window
         if (items.Count == 0)
         {
             // Sem conta: mostra um aviso no lugar (não é uma conta, então não faz nada ao ser escolhido).
-            _accountBox.ItemsSource = new[] { new LiteItem("Nenhuma conta: clique no botão azul de baixo", null) };
+            _accountBox.ItemsSource = new[] { new LiteItem("Nenhuma conta: clique no primeiro botão de baixo", null) };
             _accountBox.SelectedIndex = 0;
         }
         else _accountBox.SelectedItem = items.FirstOrDefault(i => ((Account)i.Value!).Key == active?.Key);
@@ -404,7 +472,7 @@ public sealed class LiteWindow : Window
 
         _main.LiteSelectVersion(v);
         _playBtn.IsEnabled = false;
-        _playBtn.Content = "Aguarde…";
+        _playBtn.Content = "AGUARDE…";
         _main.LitePlay();
         Tick();
     }
@@ -412,7 +480,7 @@ public sealed class LiteWindow : Window
     private void UpdatePlayEnabled(bool busy)
     {
         _playBtn.IsEnabled = !busy && _versionBox.Items.Count > 0;
-        _playBtn.Content = busy ? "Aguarde…" : "Jogar";
+        _playBtn.Content = busy ? "AGUARDE…" : "JOGAR";
     }
 
     // Lê o andamento que a MainWindow já mantém (mensagem e barra) e mostra aqui.

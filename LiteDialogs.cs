@@ -8,9 +8,9 @@ namespace MoonlightLauncher;
 /// <summary>Janelinhas da interface leve: avisos, contas e configurações. Tudo simples, escuro e sem animação.</summary>
 internal static class LiteDialogs
 {
-    private static readonly Brush Panel = new SolidColorBrush(Color.FromRgb(0x14, 0x19, 0x2B));
-    private static readonly Brush Field = new SolidColorBrush(Color.FromRgb(0x1E, 0x25, 0x3D));
-    private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0xA9, 0xB4, 0xD0));
+    private static readonly Brush Panel = LiteTheme.B("#FF0F1330");
+    private static readonly Brush Field = LiteTheme.B("#FF1B2147");
+    private static readonly Brush Muted = LiteTheme.B(LiteTheme.Soft);
 
     private static Window NewDialog(Window owner, string title, double width)
     {
@@ -21,11 +21,12 @@ internal static class LiteDialogs
             SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             ShowInTaskbar = false,
-            Background = Panel,
-            Foreground = Brushes.White,
+            Background = new LinearGradientBrush(Color.FromRgb(0x17, 0x1B, 0x42), Color.FromRgb(0x0B, 0x0E, 0x25), 90),
+            Foreground = LiteTheme.B(LiteTheme.Ink),
             FontFamily = new FontFamily("Segoe UI"),
             UseLayoutRounding = true
         };
+        LiteTheme.Apply(w);
 
         if (owner.IsVisible && owner.WindowState != WindowState.Minimized)
         {
@@ -47,8 +48,8 @@ internal static class LiteDialogs
             FontSize = 13.5,
             FontWeight = FontWeights.SemiBold,
             Style = primary
-                ? LiteWindow.FlatButton("#FFFFFF", "#E8EEF8", "#CAD4E6", "#111111")
-                : LiteWindow.FlatButton("#2A3354", "#36417A", "#1E2640", "#FFFFFF")
+                ? LiteTheme.Primary()
+                : LiteTheme.Glass("#2BFFFFFF", "#4DF27DBA", "#66F27DBA", "#FFFFFF")
         };
     }
 
@@ -56,7 +57,7 @@ internal static class LiteDialogs
     {
         Text = text,
         FontSize = size,
-        Foreground = color ?? Brushes.White,
+        Foreground = color ?? LiteTheme.B(LiteTheme.Ink),
         FontWeight = weight ?? FontWeights.Normal,
         TextWrapping = TextWrapping.Wrap
     };
@@ -84,7 +85,7 @@ internal static class LiteDialogs
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 11.5,
                 Background = Field,
-                Foreground = Brushes.White,
+                Foreground = LiteTheme.B(LiteTheme.Ink),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(8),
                 MaxHeight = 160,
@@ -131,8 +132,10 @@ internal static class LiteDialogs
         {
             Height = 120,
             Background = Field,
-            Foreground = Brushes.White,
-            BorderThickness = new Thickness(0),
+            Foreground = LiteTheme.B(LiteTheme.Ink),
+            BorderThickness = new Thickness(1),
+            BorderBrush = LiteTheme.B("#33FFFFFF"),
+            Padding = new Thickness(0, 3, 0, 3),
             FontSize = 13.5
         };
         stack.Children.Add(list);
@@ -173,7 +176,7 @@ internal static class LiteDialogs
         stack.Children.Add(remove);
 
         // Conta Moonlight (só o nome)
-        var nickTitle = Label("Nova conta Moonlight (só o nome)", 13, null, FontWeights.SemiBold);
+        var nickTitle = Label("NOVA CONTA MOONLIGHT (SÓ O NOME)", 11, LiteTheme.B(LiteTheme.Label), FontWeights.SemiBold);
         nickTitle.Margin = new Thickness(0, 16, 0, 6);
         stack.Children.Add(nickTitle);
 
@@ -263,7 +266,7 @@ internal static class LiteDialogs
         stack.Children.Add(slider);
 
         // Modo
-        var modeTitle = Label("Interface", 13.5, null, FontWeights.SemiBold);
+        var modeTitle = Label("INTERFACE", 11, LiteTheme.B(LiteTheme.Label), FontWeights.SemiBold);
         modeTitle.Margin = new Thickness(0, 18, 0, 4);
         stack.Children.Add(modeTitle);
         var modeInfo = Label("Você está no modo Leve: esta janelinha simples, sem animações e com bem pouca memória.", 12.5, Muted);
