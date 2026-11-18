@@ -1,3 +1,4 @@
+using System.Windows.Controls;
 using System.Windows;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -361,8 +362,8 @@ internal static class LiteTheme
     public static void Apply(FrameworkElement scope)
     {
         scope.Resources[typeof(ComboBox)] = Parse(ComboBoxXaml);
-        scope.Resources[typeof(System.Windows.Controls.CheckBox)] = Parse(CheckBoxXaml);
-        scope.Resources[typeof(System.Windows.Controls.TextBox)] = Parse(TextBoxXaml);
-        scope.Resources[typeof(System.Windows.Controls.ListBoxItem)] = Parse(ListBoxItemXaml);
+        scope.Resources[typeof(CheckBox)] = Parse(CheckBoxXaml);
+        scope.Resources[typeof(TextBox)] = Parse(TextBoxXaml);
+        scope.Resources[typeof(ListBoxItem)] = Parse(ListBoxItemXaml);
     }
 }
