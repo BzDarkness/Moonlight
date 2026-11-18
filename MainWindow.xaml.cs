@@ -326,10 +326,13 @@ public partial class MainWindow : Window
         {
             var show = tag == t;
             page.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-            if (show && !Perf.Light) FadeIn(page);
+            if (show && !Perf.Light && t != "Mods") FadeIn(page); // a página Mods é grande: sem fade, abre na hora
         }
 
         if (tag != null) SetActiveTab(tag); // só a aba aberta fica ativa; as outras dormem (sem RAM)
+
+        _onModsTab = tag == "Mods";
+        SyncSky();
 
         if (tag != "Mods") SetModsBars(true, instant: true); // título volta ao normal nas outras abas
         SetSettingsTimer(tag == "Settings");

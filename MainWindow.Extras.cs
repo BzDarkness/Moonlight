@@ -19,6 +19,13 @@ public partial class MainWindow
     private DispatcherTimer? _memTimer;
     private double _px, _py;
     private bool _renderPaused;
+    private bool _onModsTab;   // na aba Mods o céu fica parado: toda a força de desenho vai para a lista
+
+    /// <summary>Para ou volta com o céu conforme a janela, o tema e a aba aberta.</summary>
+    private void SyncSky()
+    {
+        if (_renderPaused || _onModsTab || ThemeManager.SkyOpacity < 0.01) _bg?.Pause(); else _bg?.Resume();
+    }
     private bool _splashStarted;
     private bool _settingsReady;
     private int _launchAnimId;
@@ -40,7 +47,7 @@ public partial class MainWindow
         Perf.Changed += () => Dispatcher.Invoke(() =>
         {
             _bg?.Build(Perf.Light);
-            if (_renderPaused || ThemeManager.SkyOpacity < 0.01) _bg?.Pause();
+            SyncSky();
             ApplyLightRendering();
             UpdatePerfTexts();
         });
@@ -83,7 +90,7 @@ public partial class MainWindow
 
     private void ParallaxStep()
     {
-        if (_renderPaused || Perf.Light || _bg == null || ThemeManager.SkyOpacity < 0.01 || WindowRoot.ActualWidth < 10) return;
+        if (_renderPaused || _onModsTab || Perf.Light || _bg == null || ThemeManager.SkyOpacity < 0.01 || WindowRoot.ActualWidth < 10) return;
         if (!CursorUtil.TryGetPosition(WindowRoot, out var p)) return;
 
         var nx = Math.Clamp(p.X / WindowRoot.ActualWidth * 2 - 1, -1.2, 1.2);
@@ -102,7 +109,7 @@ public partial class MainWindow
         if (active == !_renderPaused) return;
 
         _renderPaused = !active;
-        if (_renderPaused || ThemeManager.SkyOpacity < 0.01) _bg?.Pause(); else _bg?.Resume();
+        SyncSky();
         SkinView.Paused = _renderPaused;
         SkinEditorView.Paused = _renderPaused;
         HomeSkinView.Paused = _renderPaused;

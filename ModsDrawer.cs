@@ -44,7 +44,7 @@ public partial class MainWindow
         // Já calcula as colunas pela largura que sobrará no final.
         _colsWidthOverride = Math.Max(300, PageMods.ActualWidth - (open ? DrawerWidth : 0));
 
-        if (Perf.Light || !IsLoaded)
+        if (true || Perf.Light || !IsLoaded) // sem animar: cada quadro refazia o layout de todos os cartões
         {
             _drawerAnim.Stop();
             _drawerP = to;
@@ -122,7 +122,7 @@ public partial class MainWindow
         var from = _barsRaw;
         var to = show ? 1.0 : 0.0;
 
-        if (instant || Perf.Light || !IsLoaded)
+        if (true || instant || Perf.Light || !IsLoaded) // sem animar: cada quadro refazia o layout dos resultados
         {
             _barsAnim.Stop();
             _barsRaw = to;

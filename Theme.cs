@@ -341,10 +341,7 @@ public partial class MainWindow
         var skyOn = ThemeManager.SkyOpacity > 0.01;
         SkyHost.Visibility = skyOn ? Visibility.Visible : Visibility.Collapsed;
         SkyHost.Opacity = ThemeManager.SkyOpacity;
-        if (!_renderPaused)
-        {
-            if (skyOn) _bg?.Resume(); else _bg?.Pause();
-        }
+        SyncSky();
 
         ThemeInfo.Text = ThemeManager.Current switch
         {

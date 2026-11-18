@@ -9,7 +9,7 @@
     <RootNamespace>MoonlightLauncher</RootNamespace>
     <AssemblyName>MoonlightLauncher</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <Version>1.9.0</Version>
+    <Version>1.9.2</Version>
     <!-- ATENÇÃO: não use InvariantGlobalization=true. O WPF precisa da cultura "en-us" para montar os
          templates dos controles; com ela ligada dá XamlParseException e os menus/listas/skins quebram. -->
     <InvariantGlobalization>false</InvariantGlobalization>

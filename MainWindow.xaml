@@ -294,51 +294,16 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Grid x:Name="Root" Margin="0,0,8,8">
-                            <Grid.RenderTransform>
-                                <TranslateTransform X="0"/>
-                            </Grid.RenderTransform>
+                        <Grid Margin="0,0,8,8">
                             <Border x:Name="Bd" CornerRadius="12" Padding="12" Background="{DynamicResource SurfaceBrush}"
-                                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Opacity="0">
-                                <Border.RenderTransform>
-                                    <TranslateTransform Y="14"/>
-                                </Border.RenderTransform>
-                                <Border.Triggers>
-                                    <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetName="Bd" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.35"/>
-                                                <DoubleAnimation Storyboard.TargetName="Bd" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" To="0" Duration="0:0:0.4">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                                                </DoubleAnimation>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </Border.Triggers>
+                                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
                                 <ContentPresenter/>
                             </Border>
-                            <Border x:Name="Glow" CornerRadius="12" BorderBrush="{DynamicResource AccB1_FF}" BorderThickness="1.5"
-                                    Opacity="0" IsHitTestVisible="False"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHiBrush}"/>
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="4" Duration="0:0:0.15"/>
-                                            <DoubleAnimation Storyboard.TargetName="Glow" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="0" Duration="0:0:0.18"/>
-                                            <DoubleAnimation Storyboard.TargetName="Glow" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccB1_FF}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -405,23 +370,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="Bd" CornerRadius="10" Padding="10,8" Margin="0,0,6,6"
-                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                Opacity="0" RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
-                                <TranslateTransform Y="12"/>
-                            </Border.RenderTransform>
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="Bd" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.3"/>
-                                            <DoubleAnimation Storyboard.TargetName="Bd" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" To="0" Duration="0:0:0.35">
-                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -2437,7 +2386,7 @@
                     <!-- Resultados -->
                     <Grid x:Name="ModsResultsGrid" Grid.Row="3" SizeChanged="ModsResults_SizeChanged"
                           PreviewMouseWheel="ModsResults_PreviewWheel" ScrollViewer.ScrollChanged="ModsResults_ScrollChanged">
-                        <ListBox x:Name="ModsList" Background="Transparent" BorderThickness="0"
+                        <ListBox x:Name="ModsList" Background="Transparent" BorderThickness="0" SnapsToDevicePixels="True"
                                  ItemContainerStyle="{StaticResource ModItem}"
                                  HorizontalContentAlignment="Stretch"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -2460,7 +2409,7 @@
                                                 Background="{Binding Accent.Strip}">
                                             <Border CornerRadius="10">
                                                 <Border.Background>
-                                                    <ImageBrush ImageSource="{Binding IconUrl, Converter={StaticResource UrlImg}, ConverterParameter=104}" Stretch="UniformToFill"/>
+                                                    <ImageBrush ImageSource="{Binding IconUrl, Converter={StaticResource UrlImg}, ConverterParameter=72}" Stretch="UniformToFill"/>
                                                 </Border.Background>
                                             </Border>
                                         </Border>
@@ -2506,7 +2455,7 @@
                                         <Border CornerRadius="13,13,0,0" Background="{Binding Accent.Strip}"/>
                                         <Border CornerRadius="13,13,0,0">
                                             <Border.Background>
-                                                <ImageBrush ImageSource="{Binding BannerUrl, Converter={StaticResource UrlImg}, ConverterParameter=640}"
+                                                <ImageBrush ImageSource="{Binding BannerUrl, Converter={StaticResource UrlImg}, ConverterParameter=440}"
                                                             Stretch="UniformToFill"/>
                                             </Border.Background>
                                         </Border>
@@ -2543,7 +2492,7 @@
                                                         <Border CornerRadius="12" Background="{Binding Accent.Strip}"/>
                                                         <Border CornerRadius="12">
                                                             <Border.Background>
-                                                                <ImageBrush ImageSource="{Binding IconUrl, Converter={StaticResource UrlImg}, ConverterParameter=128}"
+                                                                <ImageBrush ImageSource="{Binding IconUrl, Converter={StaticResource UrlImg}, ConverterParameter=96}"
                                                                             Stretch="UniformToFill"/>
                                                             </Border.Background>
                                                         </Border>

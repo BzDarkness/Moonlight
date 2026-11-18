@@ -190,7 +190,7 @@ public sealed class UrlImageConverter : IValueConverter
         var width = int.TryParse(parameter as string, out var p) ? p : 0;
         var key = width + "|" + url;
         if (Cache.TryGetValue(key, out var hit)) return hit;
-        if (Cache.Count > 300) Cache.Clear();
+        if (Cache.Count > 200) Cache.Clear();
 
         try
         {
@@ -199,7 +199,12 @@ public sealed class UrlImageConverter : IValueConverter
             bi.UriSource = uri;
             if (width > 0) bi.DecodePixelWidth = width;
             bi.CacheOption = BitmapCacheOption.OnLoad;
+            bi.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
             bi.EndInit();
+            // Imagem congelada é desenhada mais rápido e não gasta memória avisando mudanças.
+            if (bi.IsDownloading)
+                bi.DownloadCompleted += (_, _) => { try { bi.Freeze(); } catch { /* ok */ } };
+            else if (bi.CanFreeze) bi.Freeze();
             Cache[key] = bi;
             return bi;
         }
@@ -343,7 +348,7 @@ public partial class MainWindow
         if (items is { Count: > 0 }) active.ScrollIntoView(items[0]);
         UpdateCardColumns();
 
-        if (items is { Count: > 0 }) _ = ColorizeAsync(items);
+        if (!Perf.Light && items is { Count: > 0 }) _ = ColorizeAsync(items); // cor da foto só no visual completo
     }
 
     private void ModsResults_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateCardColumns();

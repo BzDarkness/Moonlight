@@ -72,7 +72,7 @@ public static class ContentApi
 
     // ---------------- Modrinth ----------------
 
-    public const int PageSize = 30;
+    public const int PageSize = 24;
 
     public static async Task<(List<ContentItem> Items, int Total)> SearchModrinthAsync(
         string query, string type, string mc, string loader, IReadOnlyList<string> topics, int page,
